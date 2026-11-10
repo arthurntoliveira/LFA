@@ -1,0 +1,3 @@
+# L = { a^n b^n | n >= 0 }: a mesma quantidade de a's seguida de b's.
+# É o exemplo clássico de linguagem livre de contexto que NÃO é regular.
+S -> a S b | ε

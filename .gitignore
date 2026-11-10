@@ -1,0 +1,6 @@
+# Material de estudo pessoal (não vai para o repositório)
+ESTUDO.md
+
+# Python
+__pycache__/
+*.pyc

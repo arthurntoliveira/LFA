@@ -1,0 +1,10 @@
+{
+  "aluno": "Ana",
+  "idade": 21,
+  "aprovado": true,
+  "notas": [8.5, 9, 7.25],
+  "endereco": {
+    "cidade": "Belo Horizonte",
+    "cep": null
+  }
+}

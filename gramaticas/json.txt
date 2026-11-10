@@ -1,0 +1,16 @@
+# Gramática livre de contexto do JSON.
+# Os terminais são os TIPOS de token produzidos pelo analisador léxico:
+#   {  }  [  ]  :  ,  string  numero  true  false  null
+# A variável inicial é JSON (primeira regra).
+
+JSON         -> VALOR
+VALOR        -> OBJETO | LISTA | string | numero | true | false | null
+
+OBJETO       -> { MEMBROS }
+MEMBROS      -> PAR MAIS_PARES | ε
+MAIS_PARES   -> , PAR MAIS_PARES | ε
+PAR          -> string : VALOR
+
+LISTA        -> [ ELEMENTOS ]
+ELEMENTOS    -> VALOR MAIS_VALORES | ε
+MAIS_VALORES -> , VALOR MAIS_VALORES | ε
