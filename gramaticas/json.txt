@@ -7,10 +7,10 @@ JSON         -> VALOR
 VALOR        -> OBJETO | LISTA | string | numero | true | false | null
 
 OBJETO       -> { MEMBROS }
-MEMBROS      -> PAR MAIS_PARES | ε
-MAIS_PARES   -> , PAR MAIS_PARES | ε
+MEMBROS      -> PAR MAIS_PARES | λ
+MAIS_PARES   -> , PAR MAIS_PARES | λ
 PAR          -> string : VALOR
 
 LISTA        -> [ ELEMENTOS ]
-ELEMENTOS    -> VALOR MAIS_VALORES | ε
-MAIS_VALORES -> , VALOR MAIS_VALORES | ε
+ELEMENTOS    -> VALOR MAIS_VALORES | λ
+MAIS_VALORES -> , VALOR MAIS_VALORES | λ

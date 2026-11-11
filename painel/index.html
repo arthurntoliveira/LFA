@@ -1,0 +1,556 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Simulador de Autômato com Pilha</title>
+<style>
+:root {
+  --fundo: #f5f6f8; --caixa: #fff; --borda: #e1e4e8; --texto: #1f2328; --suave: #656d76;
+  --azul: #2563eb; --azul-claro: #e8effd; --azul-borda: #a9c1f5;
+  --verde: #1a7f37; --verde-claro: #dafbe1; --vermelho: #cf222e; --vermelho-claro: #ffebe9;
+  --amarelo: #9a6700; --amarelo-claro: #fff8c5;
+  --mono: Consolas, "Cascadia Mono", "SF Mono", Menlo, monospace;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--fundo); color: var(--texto); font: 14px/1.5 "Segoe UI", system-ui, -apple-system, Roboto, sans-serif; }
+main { max-width: 960px; margin: 0 auto; padding: 24px 20px 40px; display: flex; flex-direction: column; gap: 12px; }
+@media (max-width: 600px) { main { padding: 16px 16px 32px; } }
+h1 { font-size: 22px; font-weight: 600; margin: 0; }
+.sub { margin: 2px 0 8px; color: var(--suave); }
+.caixa { background: var(--caixa); border: 1px solid var(--borda); border-radius: 8px; padding: 14px 16px; min-width: 0; }
+h2 { font-size: 14px; font-weight: 600; margin: 0 0 10px; }
+code { font-family: var(--mono); font-size: 13px; background: var(--fundo); padding: 1px 4px; border-radius: 4px; }
+.suave { color: var(--suave); }
+.pequeno { font-size: 12px; color: var(--suave); }
+
+/* campos e botões */
+select, input[type=text], textarea {
+  font: 14px var(--mono); color: var(--texto); background: #fff;
+  border: 1px solid var(--borda); border-radius: 6px; padding: 6px 10px; min-width: 0;
+}
+select:focus, input[type=text]:focus, textarea:focus { outline: 2px solid var(--azul-claro); border-color: var(--azul); }
+textarea { width: 100%; min-height: 120px; resize: vertical; }
+button {
+  font: 500 14px inherit; font-family: inherit; color: var(--texto); background: #fff;
+  border: 1px solid var(--borda); border-radius: 6px; padding: 6px 12px; cursor: pointer;
+}
+button:hover:not(:disabled) { background: var(--fundo); }
+button:disabled { color: #a0a6ad; cursor: default; }
+button.primario { background: var(--azul); border-color: var(--azul); color: #fff; font-weight: 600; }
+button.primario:hover { background: #1d4fd7; }
+:focus-visible { outline: 2px solid var(--azul); outline-offset: 2px; }
+
+/* seletor de opções (radio por baixo) */
+.seletor { display: inline-flex; border: 1px solid var(--borda); border-radius: 6px; overflow: hidden; background: #fff; }
+.seletor label { position: relative; cursor: pointer; }
+.seletor label + label { border-left: 1px solid var(--borda); }
+.seletor input { position: absolute; opacity: 0; pointer-events: none; }
+.seletor span { display: block; padding: 6px 12px; font-weight: 500; }
+.seletor input:checked + span { background: var(--azul-claro); color: var(--azul); }
+.seletor input:focus-visible + span { outline: 2px solid var(--azul); outline-offset: -2px; }
+.seletor input:disabled + span { color: #a0a6ad; cursor: default; }
+
+.barra { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.barra select { flex: 0 1 180px; }
+.barra input[type=text] { flex: 1 1 180px; }
+.linha { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; }
+.linha + .linha { margin-top: 10px; }
+.botoes { display: flex; flex-wrap: wrap; gap: 6px; }
+.deslizante { display: flex; gap: 10px; align-items: center; flex: 1 1 260px; min-width: 0; }
+.deslizante input { flex: 1; min-width: 0; accent-color: var(--azul); }
+.deslizante span { font: 13px var(--mono); color: var(--suave); white-space: nowrap; }
+
+/* resultado */
+#resultado { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; padding: 10px 16px; }
+.selo { font-size: 12px; font-weight: 600; padding: 2px 10px; border-radius: 999px; background: var(--fundo); }
+#resultado.aceita .selo { background: var(--verde-claro); color: var(--verde); }
+#resultado.rejeitada .selo, #resultado.erro .selo { background: var(--vermelho-claro); color: var(--vermelho); }
+#resultado.inconclusivo .selo { background: var(--amarelo-claro); color: var(--amarelo); }
+
+/* fita */
+.fita-caixa { overflow-x: auto; padding: 18px 2px 2px; }
+.fita { display: flex; gap: 4px; width: max-content; }
+.fita .celula {
+  position: relative; min-width: 34px; height: 36px; padding: 0 8px; display: grid; place-items: center;
+  font: 600 16px var(--mono); background: #fff; border: 1px solid var(--borda); border-radius: 6px;
+}
+.fita .lido { color: #b4b9bf; background: var(--fundo); }
+.fita .atual { background: var(--azul-claro); border-color: var(--azul); color: var(--azul); }
+.fita .atual::before { content: ""; position: absolute; top: -10px; border: 5px solid transparent; border-top-color: var(--azul); }
+.fita .fim { color: var(--suave); font-weight: 400; }
+
+/* área principal */
+.palco { display: grid; grid-template-columns: minmax(0, 1fr) 210px; gap: 12px; }
+@media (max-width: 680px) { .palco { grid-template-columns: minmax(0, 1fr); } }
+#operacao { margin-top: 12px; }
+#operacao b { font-family: var(--mono); color: var(--azul); }
+#info-transicao { margin-top: 2px; font: 13px var(--mono); color: var(--suave); overflow-wrap: anywhere; }
+#diagrama { width: 100%; max-width: 480px; height: auto; display: block; margin: 12px auto 0; }
+#diagrama .estado circle { fill: #fff; stroke: #57606a; stroke-width: 1.5; }
+#diagrama .estado.ativo circle { fill: var(--azul-claro); stroke: var(--azul); stroke-width: 2; }
+#diagrama text { fill: var(--texto); font: 500 15px "Segoe UI", system-ui, sans-serif; }
+#diagrama .rotulo { fill: var(--suave); font: 12px var(--mono); }
+#diagrama .aresta { stroke: #8c959f; stroke-width: 1.3; fill: none; }
+#diagrama .aresta.ativa { stroke: var(--azul); stroke-width: 2.2; }
+#diagrama .seta { fill: #8c959f; }
+
+/* pilha */
+.pilha-caixa { display: flex; flex-direction: column; align-items: center; }
+.pilha-caixa h2 { align-self: flex-start; }
+#tamanho { font: 13px var(--mono); color: var(--suave); margin-bottom: 8px; }
+#pilha {
+  width: 112px; min-height: 48px; display: flex; flex-direction: column; gap: 3px; padding: 4px;
+  border: 2px solid #8c959f; border-top: 0; border-radius: 0 0 8px 8px; margin-right: 44px;
+}
+#pilha .item {
+  position: relative; height: 28px; display: grid; place-items: center;
+  font: 600 15px var(--mono); background: #fff; border: 1px solid var(--borda); border-radius: 5px;
+}
+#pilha .item.novo { background: var(--azul-claro); border-color: var(--azul-borda); color: var(--azul); }
+#pilha .item.topo::after { content: "topo"; position: absolute; left: calc(100% + 10px); font: 12px "Segoe UI", system-ui, sans-serif; color: var(--suave); }
+#pilha .saindo { background: var(--vermelho-claro); border-color: #ffcecb; color: var(--vermelho); text-decoration: line-through; animation: sai .15s ease-in .1s forwards; }
+#pilha .entrando { animation: entra .15s ease-out; }
+@keyframes entra { from { opacity: 0; } }
+@keyframes sai { to { opacity: 0; height: 0; border-width: 0; margin-bottom: -3px; } }
+.nota { font-size: 12px; color: var(--suave); text-align: center; padding: 4px 0; }
+@media (prefers-reduced-motion: reduce) { #pilha .entrando, #pilha .saindo { animation: none; } #pilha .saindo { display: none; } }
+
+
+/* gavetas */
+details.caixa { padding: 0; }
+details summary { list-style: none; cursor: pointer; padding: 10px 16px; font-weight: 500; display: flex; gap: 8px; align-items: center; }
+details summary::-webkit-details-marker { display: none; }
+details summary::before { content: "›"; font-size: 18px; line-height: 1; color: var(--suave); width: 10px; text-align: center; }
+details[open] summary::before { transform: rotate(90deg); }
+details summary:hover { color: var(--azul); }
+details .conteudo { padding: 0 16px 14px; }
+.gavetas { display: flex; flex-direction: column; gap: 8px; }
+.info { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; margin: 0; }
+.info dt { color: var(--suave); }
+.info dd { margin: 0; font-family: var(--mono); overflow-wrap: anywhere; }
+.producoes { margin: 8px 0 0; padding: 0; list-style: none; font-family: var(--mono); }
+.tabela-caixa { max-height: 300px; overflow: auto; margin-top: 12px; border: 1px solid var(--borda); border-radius: 6px; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th, td { padding: 6px 10px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--borda); }
+tr:last-child td { border-bottom: 0; }
+th { font-weight: 600; color: var(--suave); background: var(--fundo); position: sticky; top: 0; }
+td.num { color: var(--suave); width: 1%; }
+td.trans { font-family: var(--mono); white-space: nowrap; }
+td.desc { color: var(--suave); }
+tr.ativa td { background: var(--azul-claro); }
+.vazio { color: var(--suave); }
+footer { color: var(--suave); font-size: 12px; text-align: center; margin-top: 8px; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Simulador de Autômato com Pilha</h1>
+    <p class="sub">Converte uma gramática livre de contexto em um APND e simula a leitura de uma cadeia, passo a passo.</p>
+  </header>
+
+  <form class="caixa barra" id="formulario">
+    <select id="arquivo" aria-label="Gramática"></select>
+    <input type="text" id="entrada" value="aabb" spellcheck="false" autocomplete="off" aria-label="Cadeia de entrada" placeholder="cadeia (vazia = λ)">
+    <div class="seletor" role="radiogroup" aria-label="Estratégia de busca">
+      <label><input type="radio" name="busca" value="largura" checked><span>BFS</span></label>
+      <label><input type="radio" name="busca" value="profundidade"><span>DFS</span></label>
+    </div>
+    <button class="primario" type="submit">Executar</button>
+  </form>
+
+  <section class="caixa" id="resultado" aria-live="polite"><span class="suave">Carregando…</span></section>
+
+  <section class="caixa">
+    <div class="linha">
+      <div class="seletor" role="radiogroup" aria-label="O que percorrer">
+        <label><input type="radio" name="modo" id="modo-caminho" checked><span>Caminho de aceitação</span></label>
+        <label><input type="radio" name="modo" id="modo-busca"><span>Busca completa</span></label>
+      </div>
+      <div class="botoes">
+        <button type="button" id="inicio" title="Home">« Início</button>
+        <button type="button" id="voltar" title="Seta para a esquerda">‹ Voltar</button>
+        <button type="button" id="tocar" title="Espaço">Reproduzir</button>
+        <button type="button" id="avancar" title="Seta para a direita">Avançar ›</button>
+        <button type="button" id="fim" title="End">Fim »</button>
+      </div>
+    </div>
+    <div class="linha">
+      <div class="deslizante">
+        <label for="passo" class="suave">Passo</label>
+        <input type="range" id="passo" min="0" max="0" value="0">
+        <span id="rotulo-passo">0 de 0</span>
+      </div>
+      <div class="deslizante" style="flex: 0 1 260px">
+        <label for="velocidade" class="suave">Intervalo</label>
+        <input type="range" id="velocidade" min="80" max="1500" step="20" value="600">
+        <span id="velocidade-valor">600 ms</span>
+      </div>
+    </div>
+  </section>
+
+  <div class="palco">
+    <section class="caixa">
+      <h2>Fita e estado</h2>
+      <div class="fita-caixa" id="fita-caixa"><div class="fita" id="fita"></div></div>
+      <div id="operacao">—</div>
+      <div id="info-transicao">—</div>
+      <svg id="diagrama" role="img" aria-label="Diagrama de estados do APND"></svg>
+    </section>
+    <section class="caixa pilha-caixa">
+      <h2>Pilha</h2>
+      <div id="tamanho">—</div>
+      <div id="pilha"></div>
+    </section>
+  </div>
+
+  <div class="gavetas">
+    <details class="caixa">
+      <summary>Editar gramática</summary>
+      <div class="conteudo">
+        <textarea id="gramatica" spellcheck="false" aria-label="Regras da gramática"></textarea>
+        <p class="pequeno">Uma regra por linha, ex.: <code>S -&gt; a S b | λ</code>. Na cadeia, sem espaços cada caractere é um símbolo (<code>aabb</code>); com espaços, cada palavra é um símbolo (<code>{ string : numero }</code>). Depois de editar, clique em Executar.</p>
+      </div>
+    </details>
+    <details class="caixa">
+      <summary>Gramática e transições δ</summary>
+      <div class="conteudo">
+        <div id="glc" class="vazio">—</div>
+        <div class="tabela-caixa" id="tabela-caixa"><table><thead><tr><th>nº</th><th>transição</th><th>significado</th></tr></thead><tbody id="transicoes"></tbody></table></div>
+      </div>
+    </details>
+    <details class="caixa">
+      <summary>Detalhes da busca</summary>
+      <div class="conteudo">
+        <dl class="info">
+          <dt>Busca</dt><dd id="info-busca">—</dd>
+          <dt id="rotulo-no">Nó</dt><dd id="info-no">—</dd>
+        </dl>
+      </div>
+    </details>
+  </div>
+
+  <footer>Trabalho de Linguagens Formais e Autômatos, Tema 4 · construção GLC → APND do Sipser (seção 2.2)</footer>
+</main>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const SVG = "http://www.w3.org/2000/svg";
+const MAX_PILHA = 40;   // a partir daqui só mostra quantos itens há abaixo
+
+let dados = null, porId = new Map(), porNumero = new Map();
+let sequencia = [], passo = 0, modo = "caminho", relogio = null;
+
+function elemento(tag, classe, texto) {
+  const e = document.createElement(tag);
+  if (classe) e.className = classe;
+  if (texto !== undefined) e.textContent = texto;
+  return e;
+}
+function svg(tag, atributos = {}, texto) {
+  const e = document.createElementNS(SVG, tag);
+  for (const [k, v] of Object.entries(atributos)) e.setAttribute(k, v);
+  if (texto !== undefined) e.textContent = texto;
+  return e;
+}
+const simbolos = lista => lista.length ? lista.join(" ") : "λ";
+const rotuloTransicao = t => `${t.le || "λ"}, ${t.desempilha || "λ"} → ${simbolos(t.empilha)}`;
+
+// ------------------------------------------------------------ servidor
+
+async function carregarGramaticas() {
+  const lista = await (await fetch("/api/gramaticas")).json();
+  const sel = $("arquivo");
+  for (const g of lista) {
+    const o = elemento("option", "", g.nome);
+    o.value = g.texto;
+    sel.append(o);
+  }
+  sel.append(Object.assign(elemento("option", "", "(editada / nova)"), { value: "" }));
+  sel.selectedIndex = Math.max(0, lista.findIndex(g => g.nome === "anbn.txt"));
+  $("gramatica").value = sel.value;
+}
+
+async function gerar(evento) {
+  if (evento) evento.preventDefault();
+  parar();
+  const corpo = {
+    gramatica: $("gramatica").value,
+    entrada: $("entrada").value,
+    busca: document.querySelector("input[name=busca]:checked").value,
+  };
+  let resposta, json;
+  try {
+    resposta = await fetch("/api/simular", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(corpo),
+    });
+    json = await resposta.json();
+  } catch {
+    return mostrarErro("Não foi possível falar com o servidor. Ele ainda está rodando (python main.py painel)?");
+  }
+  if (!resposta.ok) return mostrarErro(json.erro);
+
+  dados = json;
+  porId = new Map(dados.explorados.map(n => [n.id, n]));
+  porNumero = new Map(dados.apnd.transicoes.map(t => [t.numero, t]));
+  modo = dados.caminho.length ? "caminho" : "busca";
+  desenharResultado();
+  desenharGramatica();
+  desenharTransicoes();
+  desenharDiagrama();
+  montarSequencia();
+}
+
+function mostrarErro(mensagem) {
+  const r = $("resultado");
+  r.className = "caixa erro";
+  r.replaceChildren(elemento("span", "selo", "Erro"), elemento("span", "", mensagem));
+}
+
+// ------------------------------------------------------------ partes fixas
+
+function desenharResultado() {
+  const r = $("resultado");
+  const nome = dados.busca === "largura" ? "largura (BFS)" : "profundidade (DFS)";
+  $("info-busca").textContent = `${nome}: ${dados.total_explorados} configurações visitadas, fronteira máxima de ${dados.maior_fronteira}`;
+  let classe, veredito, detalhe;
+  if (dados.aceita === true) {
+    [classe, veredito] = ["aceita", "Aceita"];
+    detalhe = `caminho com ${dados.caminho.length - 1} transições`;
+  } else if (dados.aceita === null) {
+    [classe, veredito] = ["inconclusivo", "Inconclusivo"];
+    detalhe = `limite de ${dados.limite} configurações atingido`;
+  } else {
+    [classe, veredito] = ["rejeitada", "Rejeitada"];
+    const esperados = dados.esperados.join(", ") || "nada";
+    const onde = dados.mais_longe < dados.entrada.length
+      ? `Nenhum caminho conseguiu ler o símbolo ${dados.mais_longe + 1} ('${dados.entrada[dados.mais_longe]}')`
+      : "A entrada acabou antes do esperado";
+    detalhe = `${onde}; esperava-se: ${esperados}`;
+  }
+  r.className = "caixa " + classe;
+  r.replaceChildren(elemento("span", "selo", veredito), elemento("span", "", detalhe));
+}
+
+function desenharGramatica() {
+  const g = dados.glc, caixa = $("glc");
+  caixa.className = "";
+  const info = elemento("dl", "info");
+  info.style.marginTop = "0";
+  for (const [k, v] of [["V", g.variaveis.join(", ")], ["Σ", g.terminais.join(", ")], ["S", g.inicial]]) {
+    info.append(elemento("dt", "", k), elemento("dd", "", v));
+  }
+  const lista = elemento("ul", "producoes");
+  lista.style.marginTop = "8px";
+  for (const p of g.producoes) lista.append(elemento("li", "", p));
+  caixa.replaceChildren(info, lista);
+  if (g.recursoes_a_esquerda.length) {
+    caixa.append(elemento("div", "dica", `Aviso: ${g.recursoes_a_esquerda.join(", ")} tem recursão à esquerda; a busca pode parar no limite.`));
+  }
+}
+
+function desenharTransicoes() {
+  const corpo = $("transicoes");
+  corpo.replaceChildren();
+  for (const t of dados.apnd.transicoes) {
+    const tr = elemento("tr");
+    tr.id = "t" + t.numero;
+    tr.append(elemento("td", "num", t.numero + "."), elemento("td", "trans", t.texto), elemento("td", "desc", t.descricao));
+    corpo.append(tr);
+  }
+}
+
+function desenharDiagrama() {
+  const d = $("diagrama"), estados = dados.apnd.estados, R = 26, Y = 108, PASSO = 170;
+  const X = i => 66 + i * PASSO;
+  const largura = X(estados.length - 1) + 60;
+  d.setAttribute("viewBox", `0 0 ${largura} 150`);
+  d.replaceChildren();
+  const defs = svg("defs");
+  const marcador = svg("marker", { id: "ponta", viewBox: "0 0 10 10", refX: 9, refY: 5, markerWidth: 7, markerHeight: 7, orient: "auto-start-reverse" });
+  marcador.append(svg("path", { d: "M0,0 L10,5 L0,10 z", class: "seta" }));
+  defs.append(marcador);
+  d.append(defs);
+
+  const pos = new Map(estados.map((e, i) => [e, X(i)]));
+  const grupos = new Map();   // "origem>destino" → transições
+  for (const t of dados.apnd.transicoes) {
+    const k = t.origem + ">" + t.destino;
+    if (!grupos.has(k)) grupos.set(k, []);
+    grupos.get(k).push(t);
+  }
+  const ini = pos.get(dados.apnd.inicial);
+  d.append(svg("line", { x1: ini - R - 34, y1: Y, x2: ini - R - 2, y2: Y, class: "aresta", "marker-end": "url(#ponta)" }));
+
+  for (const [k, ts] of grupos) {
+    const [o, dst] = k.split(">");
+    const xo = pos.get(o), xd = pos.get(dst);
+    const rotulo = ts.length === 1 ? rotuloTransicao(ts[0]) : `${ts.length} transições`;
+    let caminho, tx, ty;
+    if (o === dst) {
+      caminho = `M${xo - 14},${Y - R + 4} C${xo - 46},${Y - R - 62} ${xo + 46},${Y - R - 62} ${xo + 14},${Y - R + 4}`;
+      [tx, ty] = [xo, Y - R - 52];
+    } else {
+      const s = Math.sign(xd - xo);
+      caminho = `M${xo + s * R},${Y} L${xd - s * (R + 2)},${Y}`;
+      [tx, ty] = [(xo + xd) / 2, Y - 10];
+    }
+    d.append(svg("path", { d: caminho, class: "aresta", id: "a-" + k, "marker-end": "url(#ponta)" }));
+    d.append(svg("text", { x: tx, y: ty, "text-anchor": "middle", class: "rotulo" }, rotulo));
+  }
+  for (const e of estados) {
+    const g = svg("g", { class: "estado", id: "e-" + e });
+    g.append(svg("circle", { cx: pos.get(e), cy: Y, r: R }));
+    if (dados.apnd.aceitacao.includes(e)) g.append(svg("circle", { cx: pos.get(e), cy: Y, r: R - 5 }));
+    g.append(svg("text", { x: pos.get(e), y: Y + 5, "text-anchor": "middle" }, e));
+    d.append(g);
+  }
+}
+
+// ------------------------------------------------------------ sequência de passos
+
+function montarSequencia() {
+  parar();
+  sequencia = modo === "caminho" ? dados.caminho.map(id => porId.get(id)) : dados.explorados;
+  $("modo-caminho").checked = modo === "caminho";
+  $("modo-busca").checked = modo === "busca";
+  $("modo-caminho").disabled = !dados.caminho.length;
+  $("modo-caminho").title = dados.caminho.length ? "" : "Não existe caminho de aceitação: a cadeia não foi aceita";
+  $("passo").max = Math.max(0, sequencia.length - 1);
+  $("rotulo-no").textContent = modo === "caminho" ? "Passo" : "Nó";
+  irPara(0, false);
+}
+
+function irPara(i, animar) {
+  if (!sequencia.length) return;
+  passo = Math.min(Math.max(i, 0), sequencia.length - 1);
+  const no = sequencia[passo];
+  const pai = no.pai === null ? null : porId.get(no.pai);
+  const t = no.transicao ? porNumero.get(no.transicao) : null;
+
+  $("passo").value = passo;
+  $("rotulo-passo").textContent = `${passo} de ${sequencia.length - 1}`;
+  $("voltar").disabled = $("inicio").disabled = passo === 0;
+  $("avancar").disabled = $("fim").disabled = passo === sequencia.length - 1;
+
+  desenharFita(no);
+  desenharPilha(no, pai, t, animar);
+  destacarEstado(no, t);
+}
+
+function desenharFita(no) {
+  const fita = $("fita");
+  fita.replaceChildren();
+  const simbolosEntrada = [...dados.entrada, "⊣"];
+  simbolosEntrada.forEach((s, i) => {
+    const fim = i === dados.entrada.length;
+    let classe = "celula" + (fim ? " fim" : "");
+    if (i < no.posicao) classe += " lido";
+    if (i === no.posicao) classe += " atual";
+    const c = elemento("div", classe, s);
+    if (fim) c.title = "fim da entrada";
+    fita.append(c);
+  });
+  const caixa = $("fita-caixa"), atual = fita.children[no.posicao];
+  caixa.scrollLeft = atual.offsetLeft - caixa.clientWidth / 2 + atual.offsetWidth / 2;
+}
+
+function desenharPilha(no, pai, t, animar) {
+  const caixa = $("pilha");
+  caixa.replaceChildren();
+  const empilhados = t ? t.empilha.length : 0;   // os primeiros da pilha atual
+
+  if (animar && t && t.desempilha) caixa.append(elemento("div", "item saindo", t.desempilha));
+  no.pilha.slice(0, MAX_PILHA).forEach((s, i) => {
+    let classe = "item";
+    if (i < empilhados) classe += " novo" + (animar ? " entrando" : "");
+    if (i === 0) classe += " topo";
+    if (s === "$" && i === no.pilha.length - 1) classe += " fundo-marcador";
+    caixa.append(elemento("div", classe, s));
+  });
+  if (no.pilha.length > MAX_PILHA) caixa.append(elemento("div", "nota", `+${no.pilha.length - MAX_PILHA} abaixo`));
+  if (!no.pilha.length) caixa.append(elemento("div", "nota", "pilha vazia"));
+
+  const op = $("operacao");
+  op.replaceChildren();
+  if (!t) {
+    op.textContent = "configuração inicial";
+  } else {
+    const parte = (verbo, s) => { op.append(verbo + " "); op.append(elemento("b", "", s)); };
+    parte(t.le ? "leu" : "não leu", t.le || "λ");
+    op.append(" · ");
+    parte("desempilhou", t.desempilha || "λ");
+    op.append(" · ");
+    parte("empilhou", simbolos(t.empilha));
+  }
+  const antes = pai ? pai.pilha.length : 0, depois = no.pilha.length;
+  const tam = $("tamanho");
+  tam.className = depois > antes ? "subiu" : depois < antes ? "desceu" : "";
+  tam.textContent = pai
+    ? `tamanho: ${antes} → ${depois}`
+    : `tamanho: ${depois}`;
+}
+
+function destacarEstado(no, t) {
+  document.querySelectorAll("#diagrama .ativo, #diagrama .ativa, #transicoes .ativa")
+    .forEach(e => e.classList.remove("ativo", "ativa"));
+  document.getElementById("e-" + no.estado)?.classList.add("ativo");
+  $("info-transicao").textContent = t ? `${t.numero}. ${t.texto}  ·  ${t.descricao}` : "nenhuma transição ainda";
+  $("info-no").textContent = modo === "caminho"
+    ? `${passo} de ${sequencia.length - 1}`
+    : `#${no.id}` + (no.pai === null ? " (raiz)" : `, filho de #${no.pai}`);
+  if (!t) return;
+  document.getElementById(`a-${t.origem}>${t.destino}`)?.classList.add("ativa");
+  const linha = $("t" + t.numero), caixa = $("tabela-caixa");
+  linha.classList.add("ativa");
+  if (linha.offsetTop < caixa.scrollTop || linha.offsetTop > caixa.scrollTop + caixa.clientHeight - linha.offsetHeight) {
+    caixa.scrollTop = linha.offsetTop - caixa.clientHeight / 2;
+  }
+}
+
+// ------------------------------------------------------------ reprodução
+
+function tocar() {
+  if (passo >= sequencia.length - 1) irPara(0, false);
+  $("tocar").textContent = "Pausar";
+  relogio = setInterval(() => {
+    if (passo >= sequencia.length - 1) return parar();
+    irPara(passo + 1, true);
+  }, Number($("velocidade").value));
+}
+function parar() {
+  clearInterval(relogio);
+  relogio = null;
+  $("tocar").textContent = "Reproduzir";
+}
+const alternar = () => relogio ? parar() : tocar();
+
+$("formulario").addEventListener("submit", gerar);
+$("arquivo").addEventListener("change", () => { if ($("arquivo").value) $("gramatica").value = $("arquivo").value; });
+$("gramatica").addEventListener("input", () => { $("arquivo").value = ""; });
+$("modo-caminho").addEventListener("change", () => { modo = "caminho"; montarSequencia(); });
+$("modo-busca").addEventListener("change", () => { modo = "busca"; montarSequencia(); });
+$("inicio").addEventListener("click", () => { parar(); irPara(0, false); });
+$("voltar").addEventListener("click", () => { parar(); irPara(passo - 1, false); });
+$("avancar").addEventListener("click", () => { parar(); irPara(passo + 1, true); });
+$("fim").addEventListener("click", () => { parar(); irPara(sequencia.length - 1, false); });
+$("tocar").addEventListener("click", alternar);
+$("passo").addEventListener("input", e => { parar(); irPara(Number(e.target.value), false); });
+$("velocidade").addEventListener("input", e => {
+  $("velocidade-valor").textContent = e.target.value + " ms";
+  if (relogio) { parar(); tocar(); }
+});
+document.addEventListener("keydown", e => {
+  if (!dados || e.target.closest("input[type=text], textarea, select")) return;
+  const acoes = { ArrowRight: "avancar", ArrowLeft: "voltar", Home: "inicio", End: "fim" };
+  if (acoes[e.key]) { e.preventDefault(); $(acoes[e.key]).click(); }
+  else if (e.key === " " && e.target.tagName !== "BUTTON") { e.preventDefault(); alternar(); }
+});
+
+carregarGramaticas().then(() => gerar()).catch(() =>
+  mostrarErro("Não foi possível falar com o servidor. Abra o painel com: python main.py painel"));
+</script>
+</body>
+</html>

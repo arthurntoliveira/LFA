@@ -7,12 +7,16 @@ Testes automáticos.  Rodar na pasta do projeto com:
 import json
 import random
 import sys
+import threading
 import unittest
 from pathlib import Path
+from urllib.error import HTTPError
+from urllib.request import Request, urlopen
 
 RAIZ = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(RAIZ))
 
+from lfa import painel                                # noqa: E402
 from lfa.apnd import simular                          # noqa: E402
 from lfa.conversao import glc_para_apnd               # noqa: E402
 from lfa.glc import ler_arquivo_gramatica, ler_gramatica  # noqa: E402
@@ -27,7 +31,7 @@ def apnd_de(arquivo):
 
 class TestAtividade1Conversao(unittest.TestCase):
     def test_leitura_da_gramatica(self):
-        g = ler_gramatica("S -> a S b | ε\n# comentário\nS -> &")
+        g = ler_gramatica("S -> a S b | ε\n# comentário\nS -> &")   # ε e & continuam aceitos
         self.assertEqual(g.variaveis, ["S"])
         self.assertEqual(g.terminais, ["a", "b"])
         self.assertEqual(g.inicial, "S")
@@ -37,9 +41,9 @@ class TestAtividade1Conversao(unittest.TestCase):
         m = apnd_de("anbn.txt")
         # 1 inicial + 2 produções + 2 terminais + 1 final
         self.assertEqual(len(m.transicoes), 6)
-        self.assertEqual(str(m.transicoes[0]), "δ(q0, ε, ε) → (q1, S $)")
-        self.assertEqual(str(m.transicoes[1]), "δ(q1, ε, S) → (q1, a S b)")
-        self.assertEqual(str(m.transicoes[-1]), "δ(q1, ε, $) → (q2, ε)")
+        self.assertEqual(str(m.transicoes[0]), "δ(q0, λ, λ) → (q1, S $)")
+        self.assertEqual(str(m.transicoes[1]), "δ(q1, λ, S) → (q1, a S b)")
+        self.assertEqual(str(m.transicoes[-1]), "δ(q1, λ, $) → (q2, λ)")
 
     def test_gramatica_invalida(self):
         with self.assertRaises(ValueError):
@@ -176,6 +180,66 @@ class TestAtividade3ValidadorJSON(unittest.TestCase):
                 esperado = False
             with self.subTest(texto=texto):
                 self.assertEqual(validar_json(texto).valido, esperado)
+
+
+class TestPainel(unittest.TestCase):
+    """Sobe o servidor do painel numa porta livre e faz pedidos de verdade."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.servidor = painel.criar_servidor(0)
+        threading.Thread(target=cls.servidor.serve_forever, daemon=True).start()
+        cls.url = f"http://127.0.0.1:{cls.servidor.server_port}"
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.servidor.shutdown()
+        cls.servidor.server_close()
+
+    def pedir(self, rota, corpo=None):
+        dados = None if corpo is None else json.dumps(corpo).encode()
+        try:
+            with urlopen(Request(self.url + rota, dados)) as r:
+                return r.status, json.loads(r.read())
+        except HTTPError as e:
+            return e.code, json.loads(e.read())
+
+    def test_pagina_e_gramaticas(self):
+        with urlopen(self.url + "/") as r:
+            self.assertIn("Simulador de Autômato com Pilha".encode(), r.read())
+        codigo, lista = self.pedir("/api/gramaticas")
+        self.assertEqual(codigo, 200)
+        self.assertIn("anbn.txt", [g["nome"] for g in lista])
+
+    def test_simular_aceita_e_rejeita(self):
+        anbn = "S -> a S b | λ"
+        codigo, r = self.pedir("/api/simular", {"gramatica": anbn, "entrada": "aabb"})
+        self.assertEqual(codigo, 200)
+        self.assertTrue(r["aceita"])
+        self.assertEqual(len(r["caminho"]), 10)
+        # cada passo do caminho está nos explorados e aponta para o passo anterior
+        nos = {n["id"]: n for n in r["explorados"]}
+        for anterior, atual in zip(r["caminho"], r["caminho"][1:]):
+            self.assertEqual(nos[atual]["pai"], anterior)
+        self.assertEqual(nos[r["caminho"][-1]]["pilha"], [])
+
+        codigo, r = self.pedir("/api/simular", {"gramatica": anbn, "entrada": "aab",
+                                                "busca": "profundidade"})
+        self.assertEqual(codigo, 200)
+        self.assertFalse(r["aceita"])
+        self.assertEqual(r["caminho"], [])
+        self.assertEqual(r["esperados"], ["b"])
+
+    def test_pedidos_invalidos(self):
+        for corpo in ({"gramatica": "S -> a", "entrada": "x"},        # símbolo desconhecido
+                      {"gramatica": "sem seta", "entrada": ""},       # gramática inválida
+                      {"gramatica": "S -> a", "busca": "outra"},      # estratégia inválida
+                      {"entrada": "a"},                               # falta a gramática
+                      ["não é um objeto"]):
+            with self.subTest(corpo=corpo):
+                codigo, r = self.pedir("/api/simular", corpo)
+                self.assertEqual(codigo, 400)
+                self.assertIn("erro", r)
 
 
 if __name__ == "__main__":

@@ -10,29 +10,29 @@ Uma GLC é a quádrupla G = (V, Σ, P, S):
 Formato do arquivo de gramática (uma regra por linha):
 
     # comentário
-    S -> a S b | ε
+    S -> a S b | λ
 
 - Os símbolos do lado direito são separados por espaço.
 - Variáveis são os símbolos que aparecem do lado esquerdo de alguma regra;
   todos os outros símbolos são terminais.
 - A variável inicial é o lado esquerdo da primeira regra.
-- A palavra vazia pode ser escrita como  ε, &, λ  ou  eps.
+- A palavra vazia pode ser escrita como  λ, ε, &  ou  eps.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 
-VAZIO = ("ε", "&", "λ", "eps")
+VAZIO = ("λ", "ε", "&", "eps")
 
 
 @dataclass(frozen=True)
 class Producao:
     esquerda: str              # A
-    direita: tuple[str, ...]   # w  (tupla vazia = ε)
+    direita: tuple[str, ...]   # w  (tupla vazia = λ)
 
     def __str__(self) -> str:
-        return f"{self.esquerda} → {' '.join(self.direita) or 'ε'}"
+        return f"{self.esquerda} → {' '.join(self.direita) or 'λ'}"
 
 
 @dataclass

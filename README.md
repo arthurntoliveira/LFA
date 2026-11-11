@@ -57,6 +57,7 @@ python main.py simular   gramaticas/anbn.txt aabb                  # atividade 2
 python main.py simular   gramaticas/palindromos.txt abba --busca profundidade --explorados
 python main.py validar   exemplos/valido.json                      # atividade 3
 python main.py validar   exemplos/erro_fechamento.json
+python main.py painel                                              # painel no navegador
 python -m unittest discover testes -v                              # testes
 ```
 
@@ -65,6 +66,21 @@ python -m unittest discover testes -v                              # testes
 | `--busca largura` / `--busca profundidade` | `simular`, `validar` | estratégia de busca (padrão: largura) |
 | `--explorados` | `simular`, `validar` | lista todas as configurações na ordem em que foram visitadas |
 | `--rastro` | `validar` | mostra o caminho de aceitação do APND quando o JSON é válido |
+
+### Painel no navegador
+
+`python main.py painel` (ou a opção 4 do menu) sobe um servidor local, só com a
+biblioteca padrão, e abre o painel no navegador. Ele usa a mesma conversão e a
+mesma busca do Python; nenhuma lógica é refeita em JavaScript.
+
+- escolha ou edite a gramática, digite a cadeia e escolha BFS ou DFS;
+- percorra os passos com Início, Voltar, Avançar, Fim, Reproduzir, o slider ou as setas do teclado;
+- alterne entre o **caminho de aceitação** e a **busca completa** (todas as
+  configurações na ordem em que foram visitadas, inclusive os ramos que falharam);
+- acompanhe a fita, o estado, a transição usada e a pilha, que anima cada
+  empilhamento e desempilhamento e mostra o tamanho antes → depois.
+
+O painel limita a busca a 5000 configurações. Encerre com Ctrl+C no terminal.
 
 Na entrada do `simular`, uma palavra sem espaços é lida caractere a caractere
 (`aabb`). Com espaços, cada palavra é um símbolo (`"{ string : numero }"`).
@@ -79,6 +95,8 @@ lfa/
   apnd.py               atividade 2: APND, configurações e busca BFS/DFS
   lexico_json.py        atividade 3: tokens do JSON com linha e coluna
   validador_json.py     atividade 3: une léxico + APND e monta a mensagem de erro
+  painel.py             servidor local do painel (atividade 2)
+painel/index.html       página do painel: passo a passo e pilha animada
 gramaticas/
   anbn.txt              { aⁿbⁿ | n ≥ 0 }
   palindromos.txt       palíndromos sobre {a, b}
@@ -96,7 +114,7 @@ testes/test_trabalho.py testes automáticos
 Uma **GLC** é uma quádrupla `G = (V, Σ, P, S)`: variáveis, terminais, produções
 `A → w` e variável inicial. Um **APND** é uma sêxtupla `M = (Q, Σ, Γ, δ, q0, F)`.
 Ele é um autômato finito com uma pilha, e a função de transição
-`δ(estado, símbolo lido ou ε, topo desempilhado ou ε)` devolve um **conjunto**
+`δ(estado, símbolo lido ou λ, topo desempilhado ou λ)` devolve um **conjunto**
 de pares `(novo estado, símbolos empilhados)`. O não determinismo é justamente
 poder ter mais de uma opção ao mesmo tempo.
 
@@ -111,13 +129,13 @@ guarda a parte da forma sentencial que ainda não foi casada com a entrada.
 
 | Transição | Quando | Papel |
 |---|---|---|
-| `δ(q0, ε, ε) → (q1, S $)` | uma vez, no início | empilha o marcador de fundo `$` e a variável inicial |
-| `δ(q1, ε, A) → (q1, w)` | uma por produção `A → w` | troca a variável do topo pelo lado direito da produção |
-| `δ(q1, a, a) → (q1, ε)` | uma por terminal `a` | casa o terminal do topo com o próximo símbolo da entrada |
-| `δ(q1, ε, $) → (q2, ε)` | uma vez | o fundo apareceu: tudo foi casado, vai para a aceitação |
+| `δ(q0, λ, λ) → (q1, S $)` | uma vez, no início | empilha o marcador de fundo `$` e a variável inicial |
+| `δ(q1, λ, A) → (q1, w)` | uma por produção `A → w` | troca a variável do topo pelo lado direito da produção |
+| `δ(q1, a, a) → (q1, λ)` | uma por terminal `a` | casa o terminal do topo com o próximo símbolo da entrada |
+| `δ(q1, λ, $) → (q2, λ)` | uma vez | o fundo apareceu: tudo foi casado, vai para a aceitação |
 
 Quando uma variável tem várias produções, existem várias transições com o
-mesmo `(q1, ε, A)`. É ali que o autômato "adivinha" qual produção usar. Ao
+mesmo `(q1, λ, A)`. É ali que o autômato "adivinha" qual produção usar. Ao
 empilhar `w`, o primeiro símbolo de `w` fica no topo, para que a derivação
 continue sempre pela variável mais à esquerda.
 
@@ -125,12 +143,12 @@ continue sempre pela variável mais à esquerda.
 
 ```
 # comentário
-S -> a S b | ε
+S -> a S b | λ
 ```
 
 Os símbolos são separados por espaço. Variáveis são os símbolos que aparecem
 do lado esquerdo de alguma regra, e os demais são terminais. A primeira regra
-define a variável inicial. A palavra vazia pode ser escrita como `ε`, `&`, `λ`
+define a variável inicial. A palavra vazia pode ser escrita como `λ`, `ε`, `&`
 ou `eps`. O símbolo `$` é reservado para o fundo da pilha.
 
 ### Exemplo de execução
@@ -143,7 +161,7 @@ Gramática G = (V, Σ, P, S)
   S (inicial):   S
   P (produções):
     S → a S b
-    S → ε
+    S → λ
 
 APND M = (Q, Σ, Γ, δ, q0, F)
   Q (estados):         q0, q1, q2
@@ -153,12 +171,12 @@ APND M = (Q, Σ, Γ, δ, q0, F)
   F (aceitação):       q2
   δ (transições):
   nº  transição                  significado
-  1.  δ(q0, ε, ε) → (q1, S $)    inicializa a pilha
-  2.  δ(q1, ε, S) → (q1, a S b)  produção S → a S b
-  3.  δ(q1, ε, S) → (q1, ε)      produção S → ε
-  4.  δ(q1, a, a) → (q1, ε)      casa o terminal a
-  5.  δ(q1, b, b) → (q1, ε)      casa o terminal b
-  6.  δ(q1, ε, $) → (q2, ε)      fundo da pilha: aceita
+  1.  δ(q0, λ, λ) → (q1, S $)    inicializa a pilha
+  2.  δ(q1, λ, S) → (q1, a S b)  produção S → a S b
+  3.  δ(q1, λ, S) → (q1, λ)      produção S → λ
+  4.  δ(q1, a, a) → (q1, λ)      casa o terminal a
+  5.  δ(q1, b, b) → (q1, λ)      casa o terminal b
+  6.  δ(q1, λ, $) → (q2, λ)      fundo da pilha: aceita
 ```
 
 ---
@@ -212,16 +230,16 @@ Resultado: ACEITA
 
 Caminho de aceitação (o topo da pilha fica à esquerda):
   passo  estado  falta ler  pilha      transição usada
-  0      q0      a a b b    ε          início
-  1      q1      a a b b    S $        1. δ(q0, ε, ε) → (q1, S $)
-  2      q1      a a b b    a S b $    2. δ(q1, ε, S) → (q1, a S b)
-  3      q1      a b b      S b $      4. δ(q1, a, a) → (q1, ε)
-  4      q1      a b b      a S b b $  2. δ(q1, ε, S) → (q1, a S b)
-  5      q1      b b        S b b $    4. δ(q1, a, a) → (q1, ε)
-  6      q1      b b        b b $      3. δ(q1, ε, S) → (q1, ε)
-  7      q1      b          b $        5. δ(q1, b, b) → (q1, ε)
-  8      q1      ε          $          5. δ(q1, b, b) → (q1, ε)
-  9      q2      ε          ε          6. δ(q1, ε, $) → (q2, ε)
+  0      q0      a a b b    λ          início
+  1      q1      a a b b    S $        1. δ(q0, λ, λ) → (q1, S $)
+  2      q1      a a b b    a S b $    2. δ(q1, λ, S) → (q1, a S b)
+  3      q1      a b b      S b $      4. δ(q1, a, a) → (q1, λ)
+  4      q1      a b b      a S b b $  2. δ(q1, λ, S) → (q1, a S b)
+  5      q1      b b        S b b $    4. δ(q1, a, a) → (q1, λ)
+  6      q1      b b        b b $      3. δ(q1, λ, S) → (q1, λ)
+  7      q1      b          b $        5. δ(q1, b, b) → (q1, λ)
+  8      q1      λ          $          5. δ(q1, b, b) → (q1, λ)
+  9      q2      λ          λ          6. δ(q1, λ, $) → (q2, λ)
 ```
 
 Quando a palavra é rejeitada, o programa informa até onde os caminhos chegaram
@@ -275,12 +293,12 @@ aberturas sem limite. A pilha do APND faz exatamente esse controle.
 JSON         -> VALOR
 VALOR        -> OBJETO | LISTA | string | numero | true | false | null
 OBJETO       -> { MEMBROS }
-MEMBROS      -> PAR MAIS_PARES | ε
-MAIS_PARES   -> , PAR MAIS_PARES | ε
+MEMBROS      -> PAR MAIS_PARES | λ
+MAIS_PARES   -> , PAR MAIS_PARES | λ
 PAR          -> string : VALOR
 LISTA        -> [ ELEMENTOS ]
-ELEMENTOS    -> VALOR MAIS_VALORES | ε
-MAIS_VALORES -> , VALOR MAIS_VALORES | ε
+ELEMENTOS    -> VALOR MAIS_VALORES | λ
+MAIS_VALORES -> , VALOR MAIS_VALORES | λ
 ```
 
 A gramática foi escrita sem recursão à esquerda (as listas usam `MAIS_PARES` e
