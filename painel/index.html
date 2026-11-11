@@ -151,7 +151,7 @@ footer { color: var(--suave); font-size: 12px; text-align: center; margin-top: 8
   </header>
 
   <form class="caixa barra" id="formulario">
-    <select id="arquivo" aria-label="Gramática"></select>
+    <select id="arquivo" autocomplete="off" aria-label="Gramática"></select>
     <input type="text" id="entrada" value="aabb" spellcheck="false" autocomplete="off" aria-label="Cadeia de entrada" placeholder="cadeia (vazia = λ)">
     <div class="seletor" role="radiogroup" aria-label="Estratégia de busca">
       <label><input type="radio" name="busca" value="largura" checked><span>BFS</span></label>
@@ -209,8 +209,8 @@ footer { color: var(--suave); font-size: 12px; text-align: center; margin-top: 8
     <details class="caixa">
       <summary>Editar gramática</summary>
       <div class="conteudo">
-        <textarea id="gramatica" spellcheck="false" aria-label="Regras da gramática"></textarea>
-        <p class="pequeno">Uma regra por linha, ex.: <code>S -&gt; a S b | λ</code>. Na cadeia, sem espaços cada caractere é um símbolo (<code>aabb</code>); com espaços, cada palavra é um símbolo (<code>{ string : numero }</code>). Depois de editar, clique em Executar.</p>
+        <textarea id="gramatica" spellcheck="false" autocomplete="off" aria-label="Regras da gramática"></textarea>
+        <p class="pequeno">Uma regra por linha, ex.: <code>S -&gt; a S b | λ</code> (digite <code>lambda</code> para obter λ). Na cadeia, sem espaços cada caractere é um símbolo (<code>aabb</code>); com espaços, cada palavra é um símbolo (<code>{ string : numero }</code>). Depois de editar, clique em Executar.</p>
       </div>
     </details>
     <details class="caixa">
@@ -276,6 +276,8 @@ async function carregarGramaticas() {
 async function gerar(evento) {
   if (evento) evento.preventDefault();
   parar();
+  // o arquivo escolhido manda; o navegador pode ter restaurado um texto antigo na caixa
+  if ($("arquivo").value) $("gramatica").value = $("arquivo").value;
   const corpo = {
     gramatica: $("gramatica").value,
     entrada: $("entrada").value,
@@ -529,7 +531,12 @@ const alternar = () => relogio ? parar() : tocar();
 
 $("formulario").addEventListener("submit", gerar);
 $("arquivo").addEventListener("change", () => { if ($("arquivo").value) $("gramatica").value = $("arquivo").value; });
-$("gramatica").addEventListener("input", () => { $("arquivo").value = ""; });
+function trocarLambda(e) {   // troca "lambda" por λ assim que termina de digitar
+  const t = e.target, antes = t.value.slice(0, t.selectionStart);
+  if (/lambda$/.test(antes)) t.setRangeText("λ", antes.length - 6, antes.length, "end");
+}
+$("gramatica").addEventListener("input", e => { $("arquivo").value = ""; trocarLambda(e); });
+$("entrada").addEventListener("input", trocarLambda);
 $("modo-caminho").addEventListener("change", () => { modo = "caminho"; montarSequencia(); });
 $("modo-busca").addEventListener("change", () => { modo = "busca"; montarSequencia(); });
 $("inicio").addEventListener("click", () => { parar(); irPara(0, false); });
