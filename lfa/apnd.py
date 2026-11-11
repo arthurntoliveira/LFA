@@ -32,19 +32,26 @@ from dataclasses import dataclass, field
 FIM_DA_ENTRADA = "fim da entrada"
 
 
+def separar_entrada(texto: str) -> list[str]:
+    """Com espaços, cada palavra é um símbolo ("{ string : numero }");
+    sem espaços, cada caractere é um símbolo ("aabb")."""
+    texto = texto.strip()
+    return texto.split() if " " in texto else list(texto)
+
+
 @dataclass(frozen=True)
 class Transicao:
     numero: int
     origem: str
-    le: str                    # símbolo de entrada lido ("" = ε, não lê nada)
-    desempilha: str            # símbolo retirado do topo ("" = ε, não retira nada)
+    le: str                    # símbolo de entrada lido ("" = λ, não lê nada)
+    desempilha: str            # símbolo retirado do topo ("" = λ, não retira nada)
     destino: str
     empilha: tuple[str, ...]   # símbolos colocados na pilha; o 1º fica no topo
     descricao: str = ""
 
     def __str__(self) -> str:
-        empilha = " ".join(self.empilha) or "ε"
-        return (f"δ({self.origem}, {self.le or 'ε'}, {self.desempilha or 'ε'})"
+        empilha = " ".join(self.empilha) or "λ"
+        return (f"δ({self.origem}, {self.le or 'λ'}, {self.desempilha or 'λ'})"
                 f" → ({self.destino}, {empilha})")
 
 

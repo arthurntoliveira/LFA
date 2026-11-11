@@ -5,6 +5,7 @@ Ponto de entrada do programa (linha de comando).
     python main.py converter  gramaticas/anbn.txt
     python main.py simular    gramaticas/anbn.txt "aabb" --busca profundidade
     python main.py validar    exemplos/valido.json
+    python main.py painel                (painel passo a passo no navegador)
 
 Use  python main.py <comando> -h  para ver as opções de cada comando.
 """
@@ -17,7 +18,8 @@ import subprocess
 import sys
 from pathlib import Path
 
-from lfa.apnd import APND, No, Resultado, simular
+from lfa import painel
+from lfa.apnd import APND, No, Resultado, separar_entrada, simular
 from lfa.conversao import glc_para_apnd
 from lfa.glc import GLC, ler_arquivo_gramatica
 from lfa.validador_json import validar_json
@@ -60,7 +62,7 @@ def mostrar_apnd(m: APND) -> None:
 
 
 def texto_pilha(pilha: tuple[str, ...]) -> str:
-    return " ".join(pilha) or "ε"
+    return " ".join(pilha) or "λ"
 
 
 def mostrar_caminho(caminho: list[No], entrada: list[str]) -> None:
@@ -68,7 +70,7 @@ def mostrar_caminho(caminho: list[No], entrada: list[str]) -> None:
     linhas = []
     for passo, no in enumerate(caminho):
         c = no.config
-        linhas.append([str(passo), c.estado, " ".join(entrada[c.posicao:]) or "ε",
+        linhas.append([str(passo), c.estado, " ".join(entrada[c.posicao:]) or "λ",
                        texto_pilha(c.pilha),
                        f"{no.transicao.numero}. {no.transicao}" if no.transicao else "início"])
     tabela(["passo", "estado", "falta ler", "pilha", "transição usada"], linhas)
@@ -80,7 +82,7 @@ def mostrar_explorados(r: Resultado, entrada: list[str]) -> None:
     for no in r.explorados:
         c = no.config
         linhas.append([f"#{no.id}", f"#{no.pai.id}" if no.pai else "-", c.estado,
-                       " ".join(entrada[c.posicao:]) or "ε", texto_pilha(c.pilha)])
+                       " ".join(entrada[c.posicao:]) or "λ", texto_pilha(c.pilha)])
     tabela(["nó", "pai", "estado", "falta ler", "pilha"], linhas)
 
 
@@ -103,9 +105,7 @@ def cmd_converter(args) -> int:
 def cmd_simular(args) -> int:
     g = ler_arquivo_gramatica(args.gramatica)
     m = glc_para_apnd(g)
-    # Com espaços, cada palavra é um símbolo ("{ string : numero }");
-    # sem espaços, cada caractere é um símbolo ("aabb").
-    entrada = args.entrada.split() if " " in args.entrada.strip() else list(args.entrada.strip())
+    entrada = separar_entrada(args.entrada)
 
     desconhecidos = sorted(set(entrada) - set(g.terminais))
     if desconhecidos:
@@ -116,7 +116,7 @@ def cmd_simular(args) -> int:
         return 2
 
     r = simular(m, entrada, args.busca, guardar_explorados=args.explorados)
-    print(f"Entrada: {' '.join(entrada) or 'ε'}")
+    print(f"Entrada: {' '.join(entrada) or 'λ'}")
     mostrar_estatisticas(r, args.busca)
     if args.explorados:
         print()
@@ -208,6 +208,7 @@ def menu() -> int:
     acoes = ["Converter uma gramática em APND      (atividade 1)",
              "Simular o APND em uma palavra        (atividade 2)",
              "Validar um arquivo JSON              (atividade 3)",
+             "Abrir o painel no navegador          (atividade 2)",
              "Rodar os testes automáticos",
              "Sair"]
     while True:
@@ -223,7 +224,7 @@ def menu() -> int:
                 cmd_converter(args)
             elif acao == 1:
                 args.gramatica = escolher_arquivo("Qual gramática?", "gramaticas", "*.txt")
-                args.entrada = input('Palavra de entrada (ex.: aabb; vazia = ε): ')
+                args.entrada = input('Palavra de entrada (ex.: aabb; vazia = λ): ')
                 perguntar_busca(args)
                 print()
                 cmd_simular(args)
@@ -234,6 +235,8 @@ def menu() -> int:
                 print()
                 cmd_validar(args)
             elif acao == 3:
+                painel.iniciar()
+            elif acao == 4:
                 subprocess.run([sys.executable, "-B", "-m", "unittest", "discover", "testes", "-v"])
             else:
                 return 0
@@ -276,6 +279,10 @@ def main() -> int:
     v.add_argument("--rastro", action="store_true",
                    help="mostra o caminho do APND quando o JSON é válido")
     v.set_defaults(funcao=cmd_validar)
+
+    pn = sub.add_parser("painel", help="atividade 2: abre o painel passo a passo no navegador")
+    pn.add_argument("--porta", type=int, default=8765, help="porta local (padrão: 8765)")
+    pn.set_defaults(funcao=lambda a: painel.iniciar(a.porta) or 0)
 
     args = p.parse_args()
     try:

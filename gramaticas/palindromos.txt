@@ -1,4 +1,4 @@
 # Palíndromos sobre {a, b}: palavras que são iguais lidas de trás para frente.
 # O autômato precisa "adivinhar" onde fica o meio da palavra:
 # é um exemplo em que o não determinismo é essencial.
-S -> a S a | b S b | a | b | ε
+S -> a S a | b S b | a | b | λ

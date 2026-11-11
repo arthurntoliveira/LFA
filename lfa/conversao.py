@@ -6,20 +6,20 @@ usada para provar que toda linguagem livre de contexto é reconhecida por um AP.
 O APND tem só três estados e imita uma DERIVAÇÃO MAIS À ESQUERDA da gramática,
 usando a pilha para guardar a parte da forma sentencial que ainda falta gerar:
 
-    q0 ── ε, ε → S $ ──▶ q1 ── ε, $ → ε ──▶ q2 (aceitação)
-                         ↺  ε, A → w   para cada produção  A → w
-                         ↺  a, a → ε   para cada terminal  a
+    q0 ── λ, λ → S $ ──▶ q1 ── λ, $ → λ ──▶ q2 (aceitação)
+                         ↺  λ, A → w   para cada produção  A → w
+                         ↺  a, a → λ   para cada terminal  a
 
-1. δ(q0, ε, ε) → (q1, S $)
+1. δ(q0, λ, λ) → (q1, S $)
    Empilha o marcador de fundo $ e, por cima dele, a variável inicial S.
-2. δ(q1, ε, A) → (q1, w)          (uma para cada produção A → w)
+2. δ(q1, λ, A) → (q1, w)          (uma para cada produção A → w)
    Se o topo é uma variável, troca-a pelo lado direito de uma produção.
    Quando A tem várias produções, há várias transições possíveis:
    é AQUI que está o não determinismo.
-3. δ(q1, a, a) → (q1, ε)          (uma para cada terminal a)
+3. δ(q1, a, a) → (q1, λ)          (uma para cada terminal a)
    Se o topo é um terminal, ele precisa ser igual ao próximo símbolo da
    entrada: lê o símbolo e desempilha.
-4. δ(q1, ε, $) → (q2, ε)
+4. δ(q1, λ, $) → (q2, λ)
    Se o $ voltou ao topo, tudo o que foi empilhado já foi casado com a
    entrada. Vai para o estado de aceitação.
 """
