@@ -365,10 +365,9 @@ function desenharTransicoes() {
 }
 
 function desenharDiagrama() {
-  const d = $("diagrama"), estados = dados.apnd.estados, R = 26, Y = 108, PASSO = 170;
+  const d = $("diagrama"), estados = dados.apnd.estados, R = 26, PASSO = 170, LINHA = 15;
   const X = i => 66 + i * PASSO;
   const largura = X(estados.length - 1) + 60;
-  d.setAttribute("viewBox", `0 0 ${largura} 150`);
   d.replaceChildren();
   const defs = svg("defs");
   const marcador = svg("marker", { id: "ponta", viewBox: "0 0 10 10", refX: 9, refY: 5, markerWidth: 7, markerHeight: 7, orient: "auto-start-reverse" });
@@ -383,13 +382,15 @@ function desenharDiagrama() {
     if (!grupos.has(k)) grupos.set(k, []);
     grupos.get(k).push(t);
   }
+  const maisRotulos = Math.max(1, ...[...grupos.values()].map(ts => ts.length));
+  const Y = 108 + (maisRotulos - 1) * LINHA;   // abre espaço acima para empilhar todos os rótulos
+  d.setAttribute("viewBox", `0 0 ${largura} ${Y + 42}`);
   const ini = pos.get(dados.apnd.inicial);
   d.append(svg("line", { x1: ini - R - 34, y1: Y, x2: ini - R - 2, y2: Y, class: "aresta", "marker-end": "url(#ponta)" }));
 
   for (const [k, ts] of grupos) {
     const [o, dst] = k.split(">");
     const xo = pos.get(o), xd = pos.get(dst);
-    const rotulo = ts.length === 1 ? rotuloTransicao(ts[0]) : `${ts.length} transições`;
     let caminho, tx, ty;
     if (o === dst) {
       caminho = `M${xo - 14},${Y - R + 4} C${xo - 46},${Y - R - 62} ${xo + 46},${Y - R - 62} ${xo + 14},${Y - R + 4}`;
@@ -400,7 +401,8 @@ function desenharDiagrama() {
       [tx, ty] = [(xo + xd) / 2, Y - 10];
     }
     d.append(svg("path", { d: caminho, class: "aresta", id: "a-" + k, "marker-end": "url(#ponta)" }));
-    d.append(svg("text", { x: tx, y: ty, "text-anchor": "middle", class: "rotulo" }, rotulo));
+    ts.forEach((t, i) => d.append(svg("text",
+      { x: tx, y: ty - (ts.length - 1 - i) * LINHA, "text-anchor": "middle", class: "rotulo" }, rotuloTransicao(t))));
   }
   for (const e of estados) {
     const g = svg("g", { class: "estado", id: "e-" + e });
