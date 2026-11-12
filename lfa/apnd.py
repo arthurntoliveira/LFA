@@ -5,7 +5,7 @@ Um APND é a sêxtupla M = (Q, Σ, Γ, δ, q0, F):
     Q   estados
     Σ   alfabeto de entrada
     Γ   alfabeto da pilha
-    δ   transições:  δ(estado, lê, desempilha) → (novo estado, empilha)
+    δ   transições:  estado ──(lê, desempilha → empilha)──▶ novo estado
     q0  estado inicial
     F   estados de aceitação
 
@@ -33,7 +33,7 @@ FIM_DA_ENTRADA = "fim da entrada"
 
 
 def separar_entrada(texto: str) -> list[str]:
-    """Com espaços, cada palavra é um símbolo ("{ string : numero }");
+    """Com espaços, cada palavra é um símbolo ("{ s : n }");
     sem espaços, cada caractere é um símbolo ("aabb")."""
     texto = texto.strip()
     if texto == "λ":                   # λ sozinho é a cadeia vazia
@@ -52,9 +52,8 @@ class Transicao:
     descricao: str = ""
 
     def __str__(self) -> str:
-        empilha = " ".join(self.empilha) or "λ"
-        return (f"δ({self.origem}, {self.le or 'λ'}, {self.desempilha or 'λ'})"
-                f" → ({self.destino}, {empilha})")
+        # notação padrão do rótulo: lê, desempilha → empilha (os estados ficam à parte)
+        return f"{self.le or 'λ'}, {self.desempilha or 'λ'} → {' '.join(self.empilha) or 'λ'}"
 
 
 @dataclass(frozen=True)
@@ -136,63 +135,76 @@ def simular(apnd: APND, entrada: list[str], estrategia: str = "largura",
     raiz = No(0, Configuracao(apnd.inicial, 0, ()), None, None)
     fronteira: deque[No] = deque([raiz])   # nós gerados e ainda não visitados
     vistos = {raiz.config}                 # evita visitar a mesma configuração 2 vezes
-    explorados: list[No] = []
-    total = 0
+    explorados: list[No] = []              # só preenchida se guardar_explorados
+    total = 0                              # quantos nós já foram visitados
     maior_fronteira = 1
     proximo_id = 1
-
-    # Para relatar erros: o ponto mais distante da entrada que algum caminho
-    # alcançou e quais símbolos os caminhos que chegaram lá esperavam ler.
-    mais_longe = 0
-    esperados: set[str] = set()
+    erro = _PontoMaisDistante()
 
     while fronteira:
-        # A ÚNICA diferença entre BFS e DFS está nesta linha:
+        # 1. Escolhe o próximo nó. A ÚNICA diferença entre BFS e DFS é esta linha:
+        #    BFS tira do início (fila, FIFO); DFS tira do fim (pilha, LIFO).
         no = fronteira.popleft() if estrategia == "largura" else fronteira.pop()
-        config = no.config
         total += 1
         if guardar_explorados:
             explorados.append(no)
 
-        # Aceita: estado de aceitação e entrada toda lida.
-        if config.estado in apnd.aceitacao and config.posicao == len(entrada):
-            caminho = []
-            while no is not None:
-                caminho.append(no)
-                no = no.pai
-            return Resultado(True, caminho[::-1], explorados, total,
-                             maior_fronteira, len(entrada))
+        # 2. Chegou? Aceita se está num estado de aceitação e leu a entrada toda.
+        if no.config.estado in apnd.aceitacao and no.config.posicao == len(entrada):
+            return Resultado(True, _caminho_ate(no), explorados, total, maior_fronteira, len(entrada))
 
+        # 3. Proteção contra ramos infinitos (ex.: recursão à esquerda).
         if total >= limite:
-            return Resultado(None, [], explorados, total, maior_fronteira,
-                             mais_longe, esperados)
+            return Resultado(None, [], explorados, total, maior_fronteira, erro.posicao, erro.esperados)
 
-        transicoes = list(apnd.transicoes_possiveis(config, entrada))
+        erro.registrar(apnd, no.config)
 
-        # Registro do ponto mais distante (usado nas mensagens de erro).
-        if config.posicao > mais_longe:
-            mais_longe, esperados = config.posicao, set()
-        if config.posicao == mais_longe:
-            for t in apnd.transicoes:      # o que este caminho conseguiria ler
-                if (t.origem == config.estado and t.le
-                        and (not t.desempilha or config.pilha[:1] == (t.desempilha,))):
-                    esperados.add(t.le)
-            if config.estado in apnd.aceitacao:
-                esperados.add(FIM_DA_ENTRADA)
-
-        # Na DFS a fronteira é uma pilha: empilhamos ao contrário para que a
-        # primeira transição seja a primeira a ser tentada.
+        # 4. Expande: cada transição possível gera um filho na árvore de busca.
+        transicoes = list(apnd.transicoes_possiveis(no.config, entrada))
         if estrategia == "profundidade":
+            # A fronteira da DFS é uma pilha: empilhamos ao contrário para que
+            # a primeira transição da lista seja a primeira a ser tentada.
             transicoes.reverse()
-
         for t in transicoes:
-            nova = apnd.aplicar(config, t)
-            if nova in vistos:
-                continue
-            vistos.add(nova)
-            fronteira.append(No(proximo_id, nova, no, t))
-            proximo_id += 1
+            filho = apnd.aplicar(no.config, t)
+            if filho not in vistos:
+                vistos.add(filho)
+                fronteira.append(No(proximo_id, filho, no, t))
+                proximo_id += 1
         maior_fronteira = max(maior_fronteira, len(fronteira))
 
-    return Resultado(False, [], explorados, total, maior_fronteira,
-                     mais_longe, esperados)
+    # A fronteira esvaziou sem aceitar: nenhum caminho leva à aceitação.
+    return Resultado(False, [], explorados, total, maior_fronteira, erro.posicao, erro.esperados)
+
+
+def _caminho_ate(no: No) -> list[No]:
+    """Sobe pelos pais até a raiz: é o caminho (o rastro da pilha) até `no`."""
+    caminho = []
+    while no is not None:
+        caminho.append(no)
+        no = no.pai
+    return caminho[::-1]
+
+
+class _PontoMaisDistante:
+    """
+    Usado só para as mensagens de erro: guarda a posição mais distante da
+    entrada que algum caminho alcançou e o que os caminhos que chegaram lá
+    esperavam ler. Se a entrada é rejeitada, é ali que ela "quebrou".
+    """
+
+    def __init__(self):
+        self.posicao = 0
+        self.esperados: set[str] = set()
+
+    def registrar(self, apnd: APND, config: Configuracao) -> None:
+        if config.posicao > self.posicao:          # foi mais longe: recomeça
+            self.posicao, self.esperados = config.posicao, set()
+        if config.posicao < self.posicao:
+            return
+        topo = config.pilha[:1]
+        for t in apnd.transicoes:                  # o que este caminho conseguiria ler
+            if t.origem == config.estado and t.le and (not t.desempilha or topo == (t.desempilha,)):
+                self.esperados.add(t.le)
+        if config.estado in apnd.aceitacao:
+            self.esperados.add(FIM_DA_ENTRADA)

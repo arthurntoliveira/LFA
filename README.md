@@ -13,7 +13,17 @@ Trabalho da disciplina de Linguagens Formais e Autômatos, **Tema 4**.
    validando o fechamento correto de tags aninhadas e identificando erros de
    sintaxe (linha/coluna) onde a estrutura falhou.
 
-O grupo escolheu **JSON** para a atividade 3.
+O grupo escolheu **JSON** para a atividade 3. Em JSON, o papel das "tags
+aninhadas" é feito pelos pares `{ }` (objetos) e `[ ]` (listas): cada abertura
+precisa ser fechada pelo símbolo certo, na ordem inversa.
+
+### Onde cada item do enunciado é atendido
+
+| Item do enunciado | Onde está | Como conferir |
+|---|---|---|
+| 1. Receber uma GLC e converter para APND | `lfa/glc.py` (lê a GLC de um arquivo .txt), `lfa/conversao.py` (construção GLC → APND) | `python main.py converter gramaticas/anbn.txt` |
+| 2. APND com BFS ou DFS rastreando os caminhos da pilha | `lfa/apnd.py`, função `simular` (as duas estratégias) | `python main.py simular gramaticas/anbn.txt aabb --busca profundidade --explorados` ou o painel |
+| 3. Validador de JSON: fechamento de `{ }`/`[ ]` aninhados e erro com linha/coluna | `lfa/lexico_json.py` + `lfa/validador_json.py`, que usam a GLC `gramaticas/json.txt` convertida pelo item 1 e simulada pelo item 2 | `python main.py validar exemplos/erro_fechamento.json` |
 
 ## Resumo da solução
 
@@ -78,12 +88,23 @@ mesma busca do Python; nenhuma lógica é refeita em JavaScript.
 - alterne entre o **caminho de aceitação** e a **busca completa** (todas as
   configurações na ordem em que foram visitadas, inclusive os ramos que falharam);
 - acompanhe a fita, o estado, a transição usada e a pilha, que anima cada
-  empilhamento e desempilhamento e mostra o tamanho antes → depois.
+  empilhamento e desempilhamento e mostra o tamanho antes → depois;
+- leia, a cada passo, **qual das 4 regras** da construção foi usada (com a
+  mesma cor na legenda, na tabela δ e no passo atual) e uma **explicação em
+  português** do que aconteceu: qual variável foi trocada, quais eram as outras
+  produções possíveis (o não determinismo), qual terminal foi casado com a fita;
+- veja a **derivação mais à esquerda** sendo construída (`S ⇒ a S b ⇒ a a S b b ⇒ a a b b`):
+  o que já foi lido + a pilha sem o `$` é sempre uma forma sentencial;
+- na busca completa, veja o **nível do nó na árvore**, quem é o pai, se ele faz
+  parte do caminho de aceitação e quando um ramo é um **beco sem saída**;
+- com `json.txt`, digite um JSON de verdade (`{"nota": [8.5, 9]}`): a fita mostra
+  o tipo de cada token com o texto original embaixo, e a rejeição informa a
+  linha e a coluna do erro.
 
 O painel limita a busca a 5000 configurações. Encerre com Ctrl+C no terminal.
 
 Na entrada do `simular`, uma palavra sem espaços é lida caractere a caractere
-(`aabb`). Com espaços, cada palavra é um símbolo (`"{ string : numero }"`).
+(`aabb`). Com espaços, cada palavra é um símbolo (`"A b C"`).
 
 ## Estrutura do projeto
 
@@ -104,6 +125,22 @@ gramaticas/
 exemplos/               arquivos .json válidos e com erros
 testes/test_trabalho.py testes automáticos
 ```
+
+### Roteiro para estudar o código
+
+Os arquivos foram escritos para serem lidos nesta ordem; cada um começa com um
+comentário explicando a teoria que ele implementa.
+
+1. `lfa/glc.py`: como uma gramática `G = (V, Σ, P, S)` vira dados (`Producao`, `GLC`).
+2. `lfa/conversao.py`: as 4 regras da construção, uma chamada `nova(...)` por regra.
+3. `lfa/apnd.py`: `Transicao`, `Configuracao` e a função `simular`. O laço da
+   busca está dividido em 4 passos numerados (escolher o nó, testar a aceitação,
+   checar o limite, expandir); a única diferença entre BFS e DFS é a linha do passo 1.
+4. `lfa/lexico_json.py`: como o texto vira tokens (`{ s : n }`), com linha e coluna.
+5. `lfa/validador_json.py`: junta tudo e transforma o "ponto mais distante" da
+   busca em uma mensagem de erro.
+6. `main.py` e `lfa/painel.py`: só apresentação (terminal e navegador); não
+   têm lógica de autômato.
 
 ---
 
@@ -127,12 +164,12 @@ que implementamos (Sipser, *Introdução à Teoria da Computação*, seção 2.2
 O APND tem três estados e simula uma **derivação mais à esquerda**: a pilha
 guarda a parte da forma sentencial que ainda não foi casada com a entrada.
 
-| Transição | Quando | Papel |
-|---|---|---|
-| `δ(q0, λ, λ) → (q1, S $)` | uma vez, no início | empilha o marcador de fundo `$` e a variável inicial |
-| `δ(q1, λ, A) → (q1, w)` | uma por produção `A → w` | troca a variável do topo pelo lado direito da produção |
-| `δ(q1, a, a) → (q1, λ)` | uma por terminal `a` | casa o terminal do topo com o próximo símbolo da entrada |
-| `δ(q1, λ, $) → (q2, λ)` | uma vez | o fundo apareceu: tudo foi casado, vai para a aceitação |
+| De → para | Transição | Quando | Papel |
+|---|---|---|---|
+| q0 → q1 | `λ, λ → S $` | uma vez, no início | empilha o marcador de fundo `$` e a variável inicial |
+| q1 → q1 | `λ, A → w` | uma por produção `A → w` | troca a variável do topo pelo lado direito da produção |
+| q1 → q1 | `a, a → λ` | uma por terminal `a` | casa o terminal do topo com o próximo símbolo da entrada |
+| q1 → q2 | `λ, $ → λ` | uma vez | o fundo apareceu: tudo foi casado, vai para a aceitação |
 
 Quando uma variável tem várias produções, existem várias transições com o
 mesmo `(q1, λ, A)`. É ali que o autômato "adivinha" qual produção usar. Ao
@@ -170,13 +207,13 @@ APND M = (Q, Σ, Γ, δ, q0, F)
   q0 (inicial):        q0
   F (aceitação):       q2
   δ (transições):
-  nº  transição                  significado
-  1.  δ(q0, λ, λ) → (q1, S $)    inicializa a pilha
-  2.  δ(q1, λ, S) → (q1, a S b)  produção S → a S b
-  3.  δ(q1, λ, S) → (q1, λ)      produção S → λ
-  4.  δ(q1, a, a) → (q1, λ)      casa o terminal a
-  5.  δ(q1, b, b) → (q1, λ)      casa o terminal b
-  6.  δ(q1, λ, $) → (q2, λ)      fundo da pilha: aceita
+  nº  de  para  transição     significado
+  1.  q0  q1    λ, λ → S $    inicializa a pilha
+  2.  q1  q1    λ, S → a S b  produção S → a S b
+  3.  q1  q1    λ, S → λ      produção S → λ
+  4.  q1  q1    a, a → λ      casa o terminal a
+  5.  q1  q1    b, b → λ      casa o terminal b
+  6.  q1  q2    λ, $ → λ      fundo da pilha: aceita
 ```
 
 ---
@@ -231,15 +268,15 @@ Resultado: ACEITA
 Caminho de aceitação (o topo da pilha fica à esquerda):
   passo  estado  falta ler  pilha      transição usada
   0      q0      a a b b    λ          início
-  1      q1      a a b b    S $        1. δ(q0, λ, λ) → (q1, S $)
-  2      q1      a a b b    a S b $    2. δ(q1, λ, S) → (q1, a S b)
-  3      q1      a b b      S b $      4. δ(q1, a, a) → (q1, λ)
-  4      q1      a b b      a S b b $  2. δ(q1, λ, S) → (q1, a S b)
-  5      q1      b b        S b b $    4. δ(q1, a, a) → (q1, λ)
-  6      q1      b b        b b $      3. δ(q1, λ, S) → (q1, λ)
-  7      q1      b          b $        5. δ(q1, b, b) → (q1, λ)
-  8      q1      λ          $          5. δ(q1, b, b) → (q1, λ)
-  9      q2      λ          λ          6. δ(q1, λ, $) → (q2, λ)
+  1      q1      a a b b    S $        1. λ, λ → S $
+  2      q1      a a b b    a S b $    2. λ, S → a S b
+  3      q1      a b b      S b $      4. a, a → λ
+  4      q1      a b b      a S b b $  2. λ, S → a S b
+  5      q1      b b        S b b $    4. a, a → λ
+  6      q1      b b        b b $      3. λ, S → λ
+  7      q1      b          b $        5. b, b → λ
+  8      q1      λ          $          5. b, b → λ
+  9      q2      λ          λ          6. λ, $ → λ
 ```
 
 Quando a palavra é rejeitada, o programa informa até onde os caminhos chegaram
@@ -280,7 +317,7 @@ aberturas sem limite. A pilha do APND faz exatamente esse controle.
 ### Duas fases
 
 1. **Análise léxica** (`lfa/lexico_json.py`): transforma o texto em tokens
-   (`{ } [ ] : , string numero true false null`), anotando a linha e a coluna
+   (`{ } [ ] : , s n t f u`), anotando a linha e a coluna
    de cada um. Os tokens formam uma linguagem regular (o número é reconhecido
    por uma expressão regular), então essa fase não precisa de pilha. Aqui são
    detectados erros como aspas simples, string não fechada, escape inválido e
@@ -289,20 +326,23 @@ aberturas sem limite. A pilha do APND faz exatamente esse controle.
    `gramaticas/json.txt` é convertida pela atividade 1, e o APND resultante
    simula a sequência de tipos de token com a atividade 2.
 
+Na notação padrão, variáveis são uma letra maiúscula e terminais são minúsculas
+ou pontuação: `s` = string, `n` = número, `t` = true, `f` = false, `u` = null;
+`S` = valor, `O` = objeto, `M` = membros, `A` = mais pares, `P` = par, `L` = lista,
+`E` = elementos, `B` = mais valores.
+
 ```
-JSON         -> VALOR
-VALOR        -> OBJETO | LISTA | string | numero | true | false | null
-OBJETO       -> { MEMBROS }
-MEMBROS      -> PAR MAIS_PARES | λ
-MAIS_PARES   -> , PAR MAIS_PARES | λ
-PAR          -> string : VALOR
-LISTA        -> [ ELEMENTOS ]
-ELEMENTOS    -> VALOR MAIS_VALORES | λ
-MAIS_VALORES -> , VALOR MAIS_VALORES | λ
+S -> O | L | s | n | t | f | u
+O -> { M }
+M -> P A | λ
+A -> , P A | λ
+P -> s : S
+L -> [ E ]
+E -> S B | λ
+B -> , S B | λ
 ```
 
-A gramática foi escrita sem recursão à esquerda (as listas usam `MAIS_PARES` e
-`MAIS_VALORES`). Assim, todo ramo errado morre poucos passos depois de ser
+A gramática foi escrita sem recursão à esquerda (as listas usam `A` e `B`). Assim, todo ramo errado morre poucos passos depois de ser
 criado, e a busca cresce de forma proporcional ao tamanho do arquivo.
 
 ### Como o erro é localizado
@@ -358,7 +398,7 @@ cada passo (derivação mais à esquerda do arquivo).
 
 ## Testes
 
-`python -m unittest discover testes -v` roda 16 testes, todos passando:
+`python -m unittest discover testes -v` roda 20 testes, todos passando:
 
 - **Conversão**: leitura da gramática, transições geradas e gramáticas inválidas.
 - **Simulação**: para aⁿbⁿ e palíndromos, 16 palavras em cada estratégia,
@@ -370,6 +410,8 @@ cada passo (derivação mais à esquerda do arquivo).
 - **Teste diferencial**: 400 JSONs gerados aleatoriamente, 60% deles
   corrompidos de propósito, comparados com o `json.loads` da biblioteca padrão
   do Python. Os dois dão o mesmo veredito em todos os casos.
+- **Painel**: sobe o servidor e faz pedidos de verdade (aceitação, rejeição,
+  JSON digitado direto com linha/coluna do erro e pedidos inválidos).
 
 ## Limitações e decisões
 

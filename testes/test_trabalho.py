@@ -41,9 +41,9 @@ class TestAtividade1Conversao(unittest.TestCase):
         m = apnd_de("anbn.txt")
         # 1 inicial + 2 produções + 2 terminais + 1 final
         self.assertEqual(len(m.transicoes), 6)
-        self.assertEqual(str(m.transicoes[0]), "δ(q0, λ, λ) → (q1, S $)")
-        self.assertEqual(str(m.transicoes[1]), "δ(q1, λ, S) → (q1, a S b)")
-        self.assertEqual(str(m.transicoes[-1]), "δ(q1, λ, $) → (q2, λ)")
+        self.assertEqual(str(m.transicoes[0]), "λ, λ → S $")
+        self.assertEqual(str(m.transicoes[1]), "λ, S → a S b")
+        self.assertEqual(str(m.transicoes[-1]), "λ, $ → λ")
 
     def test_gramatica_invalida(self):
         with self.assertRaises(ValueError):
@@ -229,6 +229,16 @@ class TestPainel(unittest.TestCase):
         self.assertFalse(r["aceita"])
         self.assertEqual(r["caminho"], [])
         self.assertEqual(r["esperados"], ["b"])
+
+    def test_json_de_verdade_no_painel(self):
+        gramatica = (RAIZ / "gramaticas" / "json.txt").read_text(encoding="utf-8")
+        codigo, r = self.pedir("/api/simular", {"gramatica": gramatica, "entrada": '{"a": [1, 2}'})
+        self.assertEqual(codigo, 200)
+        self.assertFalse(r["aceita"])
+        self.assertEqual(r["entrada"], list("{s:[n,n}"))   # o APND recebe os tipos dos tokens
+        erro = r["tokens"][r["mais_longe"]]                # e o painel acha linha/coluna do erro
+        self.assertEqual((erro["texto"], erro["linha"], erro["coluna"]), ("}", 1, 12))
+        self.assertTrue(any(n["sem_saida"] for n in r["explorados"]))   # ramos mortos marcados
 
     def test_pedidos_invalidos(self):
         for corpo in ({"gramatica": "S -> a", "entrada": "x"},        # símbolo desconhecido

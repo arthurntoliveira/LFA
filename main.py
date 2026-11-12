@@ -19,7 +19,7 @@ import sys
 from pathlib import Path
 
 from lfa import painel
-from lfa.apnd import APND, No, Resultado, separar_entrada, simular
+from lfa.apnd import FIM_DA_ENTRADA, APND, No, Resultado, separar_entrada, simular
 from lfa.conversao import glc_para_apnd
 from lfa.glc import GLC, ler_arquivo_gramatica
 from lfa.validador_json import validar_json
@@ -57,8 +57,9 @@ def mostrar_apnd(m: APND) -> None:
     print(f"  q0 (inicial):        {m.inicial}")
     print(f"  F (aceitação):       {', '.join(sorted(m.aceitacao))}")
     print("  δ (transições):")
-    tabela(["nº", "transição", "significado"],
-           [[f"{t.numero}.", str(t), t.descricao] for t in m.transicoes], largura_max=60)
+    tabela(["nº", "de", "para", "transição", "significado"],
+           [[f"{t.numero}.", t.origem, t.destino, str(t), t.descricao] for t in m.transicoes],
+           largura_max=60)
 
 
 def texto_pilha(pilha: tuple[str, ...]) -> str:
@@ -112,7 +113,7 @@ def cmd_simular(args) -> int:
         print(f"Símbolos que não são terminais da gramática: {', '.join(desconhecidos)}")
         print(f"Terminais da gramática: {', '.join(g.terminais)}")
         if any(len(t) > 1 for t in g.terminais):
-            print("Separe os símbolos com espaço, ex.: { string : numero }")
+            print("Separe os símbolos com espaço, ex.: { s : n }")
         return 2
 
     r = simular(m, entrada, args.busca, guardar_explorados=args.explorados)
@@ -131,7 +132,8 @@ def cmd_simular(args) -> int:
         print("Resultado: INCONCLUSIVO (limite de configurações atingido)")
         return 3
     print("Resultado: REJEITADA (nenhum caminho leva à aceitação)")
-    esperados = ", ".join(sorted(r.esperados)) or "nada"
+    # aspas nos símbolos: com o JSON um dos terminais é a própria vírgula
+    esperados = ", ".join(s if s == FIM_DA_ENTRADA else f"'{s}'" for s in sorted(r.esperados)) or "nada"
     if r.mais_longe < len(entrada):
         print(f"Nenhum caminho conseguiu ler o símbolo {r.mais_longe + 1} "
               f"('{entrada[r.mais_longe]}'); esperava-se: {esperados}.")
@@ -271,7 +273,7 @@ def main() -> int:
 
     s = sub.add_parser("simular", parents=[busca], help="atividade 2: roda o APND sobre uma entrada")
     s.add_argument("gramatica", help="arquivo .txt com a gramática")
-    s.add_argument("entrada", help='palavra de entrada, ex.: "aabb" ou "{ string : numero }"')
+    s.add_argument("entrada", help='palavra de entrada, ex.: "aabb" ou "{s:n}"')
     s.set_defaults(funcao=cmd_simular)
 
     v = sub.add_parser("validar", parents=[busca], help="atividade 3: valida um arquivo JSON")

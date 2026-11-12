@@ -1,16 +1,19 @@
-# Gramática livre de contexto do JSON.
-# Os terminais são os TIPOS de token produzidos pelo analisador léxico:
-#   {  }  [  ]  :  ,  string  numero  true  false  null
-# A variável inicial é JSON (primeira regra).
+# Gramática livre de contexto do JSON, na notação padrão:
+# variáveis em maiúscula (uma letra), terminais em minúscula ou pontuação.
+#
+# Terminais (os tipos de token do analisador léxico):
+#   s = string   n = número   t = true   f = false   u = null
+#   {  }  [  ]  :  ,
+# Variáveis:
+#   S = valor   O = objeto   M = membros   A = mais pares   P = par
+#   L = lista   E = elementos   B = mais valores
+# A variável inicial é S (primeira regra).
 
-JSON         -> VALOR
-VALOR        -> OBJETO | LISTA | string | numero | true | false | null
-
-OBJETO       -> { MEMBROS }
-MEMBROS      -> PAR MAIS_PARES | λ
-MAIS_PARES   -> , PAR MAIS_PARES | λ
-PAR          -> string : VALOR
-
-LISTA        -> [ ELEMENTOS ]
-ELEMENTOS    -> VALOR MAIS_VALORES | λ
-MAIS_VALORES -> , VALOR MAIS_VALORES | λ
+S -> O | L | s | n | t | f | u
+O -> { M }
+M -> P A | λ
+A -> , P A | λ
+P -> s : S
+L -> [ E ]
+E -> S B | λ
+B -> , S B | λ

@@ -9,7 +9,7 @@
   --fundo: #f5f6f8; --caixa: #fff; --borda: #e1e4e8; --texto: #1f2328; --suave: #656d76;
   --azul: #2563eb; --azul-claro: #e8effd; --azul-borda: #a9c1f5;
   --verde: #1a7f37; --verde-claro: #dafbe1; --vermelho: #cf222e; --vermelho-claro: #ffebe9;
-  --amarelo: #9a6700; --amarelo-claro: #fff8c5;
+  --amarelo: #9a6700; --amarelo-claro: #fff8c5; --roxo: #8250df; --roxo-claro: #fbefff;
   --mono: Consolas, "Cascadia Mono", "SF Mono", Menlo, monospace;
 }
 * { box-sizing: border-box; }
@@ -72,25 +72,44 @@ button.primario:hover { background: #1d4fd7; }
 .fita-caixa { overflow-x: auto; padding: 18px 2px 2px; }
 .fita { display: flex; gap: 4px; width: max-content; }
 .fita .celula {
-  position: relative; min-width: 34px; height: 36px; padding: 0 8px; display: grid; place-items: center;
+  position: relative; min-width: 34px; min-height: 36px; padding: 0 8px; display: grid; place-items: center;
   font: 600 16px var(--mono); background: #fff; border: 1px solid var(--borda); border-radius: 6px;
 }
 .fita .lido { color: #b4b9bf; background: var(--fundo); }
 .fita .atual { background: var(--azul-claro); border-color: var(--azul); color: var(--azul); }
 .fita .atual::before { content: ""; position: absolute; top: -10px; border: 5px solid transparent; border-top-color: var(--azul); }
 .fita .fim { color: var(--suave); font-weight: 400; }
+.fita .celula small { display: block; max-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 400 10px var(--mono); color: var(--suave); }
 
 /* área principal */
 .palco { display: grid; grid-template-columns: minmax(0, 1fr) 210px; gap: 12px; }
 @media (max-width: 680px) { .palco { grid-template-columns: minmax(0, 1fr); } }
-#operacao { margin-top: 12px; }
-#operacao b { font-family: var(--mono); color: var(--azul); }
-#info-transicao { margin-top: 2px; font: 13px var(--mono); color: var(--suave); overflow-wrap: anywhere; }
+#info-transicao { margin-top: 14px; display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; font: 13px var(--mono); color: var(--suave); overflow-wrap: anywhere; }
+#explicacao { margin-top: 6px; }
+#explicacao b, #operacao b { font-family: var(--mono); color: var(--azul); }
+#operacao { margin-top: 4px; font-size: 13px; color: var(--suave); }
+#ramo { margin-top: 8px; padding: 6px 10px; border-left: 3px solid var(--borda); }
+
+/* regras da construção (mesmas cores na legenda, na tabela e no passo atual) */
+.chip { display: inline-block; font: 600 11px "Segoe UI", system-ui, sans-serif; padding: 1px 8px; border-radius: 999px; white-space: nowrap; }
+.chip.inicio { background: var(--azul-claro); color: var(--azul); }
+.chip.producao { background: var(--amarelo-claro); color: var(--amarelo); }
+.chip.casamento { background: var(--roxo-claro); color: var(--roxo); }
+.chip.aceitacao { background: var(--verde-claro); color: var(--verde); }
+.legenda { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 6px 14px; margin: 0; padding: 0; list-style: none; font-size: 13px; }
+.legenda .chip { margin-right: 6px; }
+
+/* derivação */
+.derivacao { font: 15px var(--mono); line-height: 2; overflow-wrap: anywhere; }
+.derivacao .var { color: var(--amarelo); font-weight: 700; }
+.derivacao .seta { color: var(--suave); margin: 0 6px; }
+.derivacao .atual { background: var(--azul-claro); border-radius: 4px; padding: 2px 4px; }
 #diagrama { width: 100%; max-width: 480px; height: auto; display: block; margin: 12px auto 0; }
 #diagrama .estado circle { fill: #fff; stroke: #57606a; stroke-width: 1.5; }
 #diagrama .estado.ativo circle { fill: var(--azul-claro); stroke: var(--azul); stroke-width: 2; }
 #diagrama text { fill: var(--texto); font: 500 15px "Segoe UI", system-ui, sans-serif; }
 #diagrama .rotulo { fill: var(--suave); font: 12px var(--mono); }
+#diagrama .rotulo.ativa { fill: var(--azul); font-weight: 700; }
 #diagrama .aresta { stroke: #8c959f; stroke-width: 1.3; fill: none; }
 #diagrama .aresta.ativa { stroke: var(--azul); stroke-width: 2.2; }
 #diagrama .seta { fill: #8c959f; }
@@ -99,6 +118,8 @@ button.primario:hover { background: #1d4fd7; }
 .pilha-caixa { display: flex; flex-direction: column; align-items: center; }
 .pilha-caixa h2 { align-self: flex-start; }
 #tamanho { font: 13px var(--mono); color: var(--suave); margin-bottom: 8px; }
+#tamanho.subiu { color: var(--azul); }
+#tamanho.desceu { color: var(--vermelho); }
 #pilha {
   width: 112px; min-height: 48px; display: flex; flex-direction: column; gap: 3px; padding: 4px;
   border: 2px solid #8c959f; border-top: 0; border-radius: 0 0 8px 8px; margin-right: 44px;
@@ -108,6 +129,7 @@ button.primario:hover { background: #1d4fd7; }
   font: 600 15px var(--mono); background: #fff; border: 1px solid var(--borda); border-radius: 5px;
 }
 #pilha .item.novo { background: var(--azul-claro); border-color: var(--azul-borda); color: var(--azul); }
+#pilha .item.fundo-marcador { border-style: dashed; color: var(--suave); }
 #pilha .item.topo::after { content: "topo"; position: absolute; left: calc(100% + 10px); font: 12px "Segoe UI", system-ui, sans-serif; color: var(--suave); }
 #pilha .saindo { background: var(--vermelho-claro); border-color: #ffcecb; color: var(--vermelho); text-decoration: line-through; animation: sai .15s ease-in .1s forwards; }
 #pilha .entrando { animation: entra .15s ease-out; }
@@ -140,6 +162,7 @@ td.trans { font-family: var(--mono); white-space: nowrap; }
 td.desc { color: var(--suave); }
 tr.ativa td { background: var(--azul-claro); }
 .vazio { color: var(--suave); }
+.dica { margin-top: 8px; padding: 6px 10px; border-radius: 6px; background: var(--amarelo-claro); color: var(--amarelo); font-size: 13px; }
 footer { color: var(--suave); font-size: 12px; text-align: center; margin-top: 8px; }
 </style>
 </head>
@@ -147,8 +170,19 @@ footer { color: var(--suave); font-size: 12px; text-align: center; margin-top: 8
 <main>
   <header>
     <h1>Simulador de Autômato com Pilha</h1>
-    <p class="sub">Converte uma gramática livre de contexto em um APND e simula a leitura de uma cadeia, passo a passo.</p>
+    <p class="sub">Converte uma gramática livre de contexto (GLC) em um autômato com pilha não determinístico (APND) e simula a leitura de uma cadeia, passo a passo.</p>
   </header>
+
+  <section class="caixa">
+    <h2>Como o APND funciona</h2>
+    <p class="pequeno" style="margin-top:0">O autômato tem 3 estados e imita uma <b>derivação mais à esquerda</b> da gramática: a pilha guarda a parte da palavra que ainda falta gerar. Todas as transições vêm de 4 regras:</p>
+    <ul class="legenda">
+      <li><span class="chip inicio">regra 1 · início</span>empilha <code>$</code> (fundo) e a variável inicial</li>
+      <li><span class="chip producao">regra 2 · produção</span>topo é variável: troca pelo lado direito de uma produção</li>
+      <li><span class="chip casamento">regra 3 · casa terminal</span>topo é terminal igual ao da fita: lê e desempilha</li>
+      <li><span class="chip aceitacao">regra 4 · aceitação</span>o <code>$</code> voltou ao topo: vai para o estado final</li>
+    </ul>
+  </section>
 
   <form class="caixa barra" id="formulario">
     <select id="arquivo" autocomplete="off" aria-label="Gramática"></select>
@@ -194,8 +228,10 @@ footer { color: var(--suave); font-size: 12px; text-align: center; margin-top: 8
     <section class="caixa">
       <h2>Fita e estado</h2>
       <div class="fita-caixa" id="fita-caixa"><div class="fita" id="fita"></div></div>
-      <div id="operacao">—</div>
       <div id="info-transicao">—</div>
+      <div id="explicacao" aria-live="polite">—</div>
+      <div id="operacao">—</div>
+      <div id="ramo" class="pequeno" hidden></div>
       <svg id="diagrama" role="img" aria-label="Diagrama de estados do APND"></svg>
     </section>
     <section class="caixa pilha-caixa">
@@ -205,19 +241,25 @@ footer { color: var(--suave); font-size: 12px; text-align: center; margin-top: 8
     </section>
   </div>
 
+  <section class="caixa">
+    <h2>Derivação mais à esquerda</h2>
+    <p class="pequeno" style="margin-top:0">Em cada passo, <b>o que já foi lido</b> + <b>a pilha</b> (sem o <code>$</code>) formam uma forma sentencial. Cada vez que a regra 2 é usada, a derivação ganha um passo ⇒. Variáveis em destaque.</p>
+    <div id="derivacao" class="derivacao">—</div>
+  </section>
+
   <div class="gavetas">
     <details class="caixa">
       <summary>Editar gramática</summary>
       <div class="conteudo">
         <textarea id="gramatica" spellcheck="false" autocomplete="off" aria-label="Regras da gramática"></textarea>
-        <p class="pequeno">Uma regra por linha, ex.: <code>S -&gt; a S b | λ</code> (digite <code>lambda</code> para obter λ). Na cadeia, sem espaços cada caractere é um símbolo (<code>aabb</code>); com espaços, cada palavra é um símbolo (<code>{ string : numero }</code>). Depois de editar, clique em Executar.</p>
+        <p class="pequeno">Uma regra por linha, ex.: <code>S -&gt; a S b | λ</code> (digite <code>lambda</code> para obter λ). Na cadeia, sem espaços cada caractere é um símbolo (<code>aabb</code>); com espaços, cada palavra é um símbolo (<code>A b C</code>). Com <code>json.txt</code> também dá para digitar o JSON de verdade (<code>{"nota": [8.5, 9]}</code>). Depois de editar, clique em Executar.</p>
       </div>
     </details>
     <details class="caixa">
       <summary>Gramática e transições δ</summary>
       <div class="conteudo">
         <div id="glc" class="vazio">—</div>
-        <div class="tabela-caixa" id="tabela-caixa"><table><thead><tr><th>nº</th><th>transição</th><th>significado</th></tr></thead><tbody id="transicoes"></tbody></table></div>
+        <div class="tabela-caixa" id="tabela-caixa"><table><thead><tr><th>nº</th><th>regra</th><th>de → para</th><th>transição</th><th>significado</th></tr></thead><tbody id="transicoes"></tbody></table></div>
       </div>
     </details>
     <details class="caixa">
@@ -257,6 +299,33 @@ function svg(tag, atributos = {}, texto) {
 }
 const simbolos = lista => lista.length ? lista.join(" ") : "λ";
 const rotuloTransicao = t => `${t.le || "λ"}, ${t.desempilha || "λ"} → ${simbolos(t.empilha)}`;
+
+// As 4 regras da construção GLC → APND (lfa/conversao.py).
+const REGRAS = {
+  inicio:    "regra 1 · início",
+  producao:  "regra 2 · produção",
+  casamento: "regra 3 · casa terminal",
+  aceitacao: "regra 4 · aceitação",
+};
+function regraDe(t) {
+  if (t.origem === dados.apnd.inicial) return "inicio";
+  if (t.desempilha === "$") return "aceitacao";
+  return t.le ? "casamento" : "producao";
+}
+const chip = t => elemento("span", "chip " + regraDe(t), REGRAS[regraDe(t)]);
+
+// Monta um texto com partes em negrito: frase(alvo, ["topo é ", B("S"), "."])
+const B = s => ({ negrito: s });
+function frase(alvo, partes) {
+  alvo.replaceChildren(...partes.map(p => typeof p === "string" ? p : elemento("b", "", p.negrito)));
+}
+
+// Nós da raiz até `no` (o ramo da árvore de busca que levou até ele).
+function ramoAte(no) {
+  const ramo = [];
+  for (let n = no; n; n = n.pai === null ? null : porId.get(n.pai)) ramo.push(n);
+  return ramo.reverse();
+}
 
 // ------------------------------------------------------------ servidor
 
@@ -326,9 +395,12 @@ function desenharResultado() {
     detalhe = `limite de ${dados.limite} configurações atingido`;
   } else {
     [classe, veredito] = ["rejeitada", "Rejeitada"];
-    const esperados = dados.esperados.join(", ") || "nada";
+    // aspas nos símbolos: com o JSON um dos terminais é a própria vírgula
+    const esperados = dados.esperados.map(s => s === "fim da entrada" ? s : `'${s}'`).join(", ") || "nada";
+    const tok = dados.tokens[dados.mais_longe];   // só existe com JSON de verdade
     const onde = dados.mais_longe < dados.entrada.length
       ? `Nenhum caminho conseguiu ler o símbolo ${dados.mais_longe + 1} ('${dados.entrada[dados.mais_longe]}')`
+        + (tok ? `, que é ${tok.texto} na linha ${tok.linha}, coluna ${tok.coluna}` : "")
       : "A entrada acabou antes do esperado";
     detalhe = `${onde}; esperava-se: ${esperados}`;
   }
@@ -359,7 +431,9 @@ function desenharTransicoes() {
   for (const t of dados.apnd.transicoes) {
     const tr = elemento("tr");
     tr.id = "t" + t.numero;
-    tr.append(elemento("td", "num", t.numero + "."), elemento("td", "trans", t.texto), elemento("td", "desc", t.descricao));
+    const regra = elemento("td");
+    regra.append(chip(t));
+    tr.append(elemento("td", "num", t.numero + "."), regra, elemento("td", "trans", `${t.origem} → ${t.destino}`), elemento("td", "trans", t.texto), elemento("td", "desc", t.descricao));
     corpo.append(tr);
   }
 }
@@ -402,7 +476,7 @@ function desenharDiagrama() {
     }
     d.append(svg("path", { d: caminho, class: "aresta", id: "a-" + k, "marker-end": "url(#ponta)" }));
     ts.forEach((t, i) => d.append(svg("text",
-      { x: tx, y: ty - (ts.length - 1 - i) * LINHA, "text-anchor": "middle", class: "rotulo" }, rotuloTransicao(t))));
+      { x: tx, y: ty - (ts.length - 1 - i) * LINHA, "text-anchor": "middle", class: "rotulo", id: "r" + t.numero }, rotuloTransicao(t))));
   }
   for (const e of estados) {
     const g = svg("g", { class: "estado", id: "e-" + e });
@@ -439,9 +513,86 @@ function irPara(i, animar) {
   $("voltar").disabled = $("inicio").disabled = passo === 0;
   $("avancar").disabled = $("fim").disabled = passo === sequencia.length - 1;
 
+  const ramo = ramoAte(no);
   desenharFita(no);
   desenharPilha(no, pai, t, animar);
   destacarEstado(no, t);
+  explicar(no, t);
+  explicarRamo(no, ramo);
+  desenharDerivacao(ramo);
+}
+
+// ------------------------------------------------------------ explicações
+
+function explicar(no, t) {
+  const falta = dados.entrada.length - no.posicao;
+  const partes = [];
+  if (!t) {
+    partes.push("Configuração inicial: estado ", B(no.estado), ", nada foi lido e a pilha está vazia. Só a regra 1 pode ser usada.");
+  } else if (regraDe(t) === "inicio") {
+    partes.push("Empilha o marcador de fundo ", B("$"), " e, por cima dele, a variável inicial ", B(dados.glc.inicial),
+      ". Daqui em diante a pilha guarda o que ainda falta gerar.");
+  } else if (regraDe(t) === "producao") {
+    const A = t.desempilha;
+    partes.push("O topo é a variável ", B(A), ". Sem ler nada da fita (λ), o autômato troca ", B(A),
+      " pelo lado direito da produção ", B(`${A} → ${simbolos(t.empilha)}`),
+      t.empilha.length ? "; o primeiro símbolo fica no topo." : ", ou seja, só desempilha.");
+    const opcoes = dados.apnd.transicoes.filter(o => regraDe(o) === "producao" && o.desempilha === A);
+    if (opcoes.length > 1) {
+      partes.push(` ${A} tem ${opcoes.length} produções (`, B(opcoes.map(o => simbolos(o.empilha)).join(" | ")),
+        "), e o autômato não sabe qual vai dar certo: isso é o não determinismo. A busca testa as outras opções em outros ramos.");
+    }
+  } else if (regraDe(t) === "casamento") {
+    partes.push("O topo é o terminal ", B(t.le), " e o próximo símbolo da fita também é ", B(t.le),
+      ": o autômato lê esse símbolo e o desempilha. A fita avança uma posição.");
+  } else {
+    partes.push("O fundo ", B("$"), " voltou ao topo: tudo o que foi empilhado já foi casado com a fita. Vai para ",
+      B(t.destino), ", o estado de aceitação.",
+      falta === 0 ? " A fita foi lida inteira: a cadeia é ACEITA." : ` Mas ainda faltam ${falta} símbolo(s) na fita, então este ramo não aceita.`);
+  }
+  if (modo === "busca" && no.sem_saida && t && regraDe(t) !== "aceitacao") {
+    partes.push(" Beco sem saída: nenhuma transição serve aqui (topo ", B(no.pilha[0] ?? "vazio"), ", próximo símbolo da fita ",
+      B(falta ? dados.entrada[no.posicao] : "fim"), "). A busca abandona este ramo.");
+  }
+  frase($("explicacao"), partes);
+}
+
+function explicarRamo(no, ramo) {
+  const caixa = $("ramo");
+  caixa.hidden = modo !== "busca";
+  if (caixa.hidden) return;
+  const nivel = ramo.length - 1;
+  const estrategia = dados.busca === "largura"
+    ? `A BFS usa uma fila: visita a árvore nível por nível, então os nós do nível ${nivel} vêm todos antes dos do nível ${nivel + 1}.`
+    : "A DFS usa uma pilha: segue sempre o filho mais recente, descendo um ramo até ele morrer; aí volta (backtracking) e tenta a próxima alternativa.";
+  caixa.textContent = `Nó #${no.id}: ${passo + 1}º visitado, nível ${nivel} da árvore`
+    + (no.pai === null ? " (raiz)" : `, filho de #${no.pai}`)
+    + (dados.caminho.includes(no.id) ? ". Faz parte do caminho de aceitação" : "")
+    + `. ${estrategia}`;
+}
+
+function desenharDerivacao(ramo) {
+  const variaveis = new Set(dados.glc.variaveis), formas = [];
+  for (const n of ramo) {
+    if (!n.pilha.includes("$")) continue;   // antes da regra 1 e depois da regra 4 não há forma nova
+    const forma = [...dados.entrada.slice(0, n.posicao), ...n.pilha.filter(s => s !== "$")];
+    if (formas.at(-1)?.join(" ") !== forma.join(" ")) formas.push(forma);   // a regra 3 não muda a forma
+  }
+  const caixa = $("derivacao");
+  if (!formas.length) { caixa.textContent = "— (a derivação começa na regra 1)"; return; }
+  const MAX = 12, inicio = Math.max(0, formas.length - MAX);
+  caixa.replaceChildren();
+  if (inicio) caixa.append(elemento("span", "seta", `… (${inicio} formas antes) ⇒`));
+  formas.slice(inicio).forEach((forma, i, lista) => {
+    if (i) caixa.append(elemento("span", "seta", "⇒"));
+    const span = elemento("span", i === lista.length - 1 ? "atual" : "");
+    if (!forma.length) span.append("λ");
+    forma.forEach((s, j) => {
+      if (j) span.append(" ");
+      span.append(variaveis.has(s) ? elemento("span", "var", s) : s);
+    });
+    caixa.append(span);
+  });
 }
 
 function desenharFita(no) {
@@ -455,6 +606,11 @@ function desenharFita(no) {
     if (i === no.posicao) classe += " atual";
     const c = elemento("div", classe, s);
     if (fim) c.title = "fim da entrada";
+    const tok = dados.tokens[i];   // JSON de verdade: mostra o texto original embaixo do terminal
+    if (tok) {
+      c.title = `${tok.texto}  (linha ${tok.linha}, coluna ${tok.coluna})`;
+      if (tok.texto !== s) c.append(elemento("small", "", tok.texto));
+    }
     fita.append(c);
   });
   const caixa = $("fita-caixa"), atual = fita.children[no.posicao];
@@ -480,10 +636,10 @@ function desenharPilha(no, pai, t, animar) {
   const op = $("operacao");
   op.replaceChildren();
   if (!t) {
-    op.textContent = "configuração inicial";
+    op.textContent = "";   // a explicação acima já descreve a configuração inicial
   } else {
     const parte = (verbo, s) => { op.append(verbo + " "); op.append(elemento("b", "", s)); };
-    parte(t.le ? "leu" : "não leu", t.le || "λ");
+    parte("leu", t.le || "λ (nada)");
     op.append(" · ");
     parte("desempilhou", t.desempilha || "λ");
     op.append(" · ");
@@ -501,12 +657,15 @@ function destacarEstado(no, t) {
   document.querySelectorAll("#diagrama .ativo, #diagrama .ativa, #transicoes .ativa")
     .forEach(e => e.classList.remove("ativo", "ativa"));
   document.getElementById("e-" + no.estado)?.classList.add("ativo");
-  $("info-transicao").textContent = t ? `${t.numero}. ${t.texto}  ·  ${t.descricao}` : "nenhuma transição ainda";
+  const info = $("info-transicao");
+  if (t) info.replaceChildren(chip(t), `transição ${t.numero}:  ${t.texto}   (${t.origem} → ${t.destino})`);
+  else info.textContent = "nenhuma transição ainda";
   $("info-no").textContent = modo === "caminho"
     ? `${passo} de ${sequencia.length - 1}`
     : `#${no.id}` + (no.pai === null ? " (raiz)" : `, filho de #${no.pai}`);
   if (!t) return;
   document.getElementById(`a-${t.origem}>${t.destino}`)?.classList.add("ativa");
+  document.getElementById("r" + t.numero)?.classList.add("ativa");
   const linha = $("t" + t.numero), caixa = $("tabela-caixa");
   linha.classList.add("ativa");
   if (linha.offsetTop < caixa.scrollTop || linha.offsetTop > caixa.scrollTop + caixa.clientHeight - linha.offsetHeight) {
@@ -532,7 +691,14 @@ function parar() {
 const alternar = () => relogio ? parar() : tocar();
 
 $("formulario").addEventListener("submit", gerar);
-$("arquivo").addEventListener("change", () => { if ($("arquivo").value) $("gramatica").value = $("arquivo").value; });
+const EXEMPLOS = { "anbn.txt": "aabb", "palindromos.txt": "abba", "json.txt": '{"nota": [8.5, 9]}' };
+$("arquivo").addEventListener("change", () => {
+  const sel = $("arquivo");
+  if (!sel.value) return;
+  $("gramatica").value = sel.value;
+  const exemplo = EXEMPLOS[sel.selectedOptions[0].textContent];
+  if (exemplo) { $("entrada").value = exemplo; gerar(); }   // já mostra um autômato rodando
+});
 function trocarLambda(e) {   // troca "lambda" por λ assim que termina de digitar
   const t = e.target, antes = t.value.slice(0, t.selectionStart);
   if (/lambda$/.test(antes)) t.setRangeText("λ", antes.length - 6, antes.length, "end");

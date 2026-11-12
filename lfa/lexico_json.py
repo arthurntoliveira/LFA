@@ -7,7 +7,9 @@ caracteres: para ele, o texto
 
     {"nome": "Ana", "idade": 20}
 
-é a sequência   {  string  :  string  ,  string  :  numero  }
+é a sequência   {  s  :  s  ,  s  :  n  }
+
+(s = string, n = número, t = true, f = false, u = null; ver gramaticas/json.txt)
 
 Os tokens formam uma linguagem REGULAR (números e strings podem ser descritos
 por expressões regulares / autômatos finitos). Não é preciso pilha aqui. A
@@ -22,7 +24,7 @@ from dataclasses import dataclass
 
 # Número JSON: -?(0|[1-9][0-9]*)(.[0-9]+)?([eE][+-]?[0-9]+)?
 NUMERO = re.compile(r"-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?")
-PALAVRAS = ("true", "false", "null")
+PALAVRAS = {"true": "t", "false": "f", "null": "u"}   # palavra → terminal
 ESTRUTURA = "{}[]:,"
 ESCAPES = '"\\/bfnrt'
 HEX = "0123456789abcdefABCDEF"
@@ -30,7 +32,7 @@ HEX = "0123456789abcdefABCDEF"
 
 @dataclass(frozen=True)
 class Token:
-    tipo: str      # '{', '}', '[', ']', ':', ',', 'string', 'numero', 'true', 'false', 'null'
+    tipo: str      # terminal da gramática: { } [ ] : , s (string) n (número) t f u (true false null)
     texto: str     # trecho original do arquivo
     linha: int
     coluna: int
@@ -68,7 +70,7 @@ def tokenizar(texto: str) -> tuple[list[Token], tuple[int, int]]:
         # Strings: de uma aspa até a próxima aspa não escapada.
         if c == '"':
             fim = _fim_da_string(texto, i, linha, coluna)
-            tokens.append(Token("string", texto[i:fim], linha, coluna))
+            tokens.append(Token("s", texto[i:fim], linha, coluna))
             coluna += fim - i
             i = fim
             continue
@@ -80,7 +82,7 @@ def tokenizar(texto: str) -> tuple[list[Token], tuple[int, int]]:
             # Um número não pode vir colado a letras/dígitos (ex.: 12abc, 012).
             if fim < len(texto) and (texto[fim].isalnum() or texto[fim] in "._"):
                 raise ErroLexico(f"número mal formado: {texto[i:fim + 1]!r}", linha, coluna)
-            tokens.append(Token("numero", m.group(), linha, coluna))
+            tokens.append(Token("n", m.group(), linha, coluna))
             coluna += fim - i
             i = fim
             continue
@@ -96,7 +98,7 @@ def tokenizar(texto: str) -> tuple[list[Token], tuple[int, int]]:
             if palavra not in PALAVRAS:
                 raise ErroLexico(f"palavra desconhecida {palavra!r} "
                                  f"(strings precisam de aspas duplas)", linha, coluna)
-            tokens.append(Token(palavra, palavra, linha, coluna))
+            tokens.append(Token(PALAVRAS[palavra], palavra, linha, coluna))
             coluna += j - i
             i = j
             continue

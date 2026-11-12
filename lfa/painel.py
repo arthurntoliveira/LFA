@@ -20,6 +20,9 @@ from pathlib import Path
 from .apnd import separar_entrada, simular
 from .conversao import glc_para_apnd
 from .glc import ler_gramatica
+from .lexico_json import ErroLexico, tokenizar
+
+TIPOS_JSON = set("{}[]:,sntfu")   # terminais de gramaticas/json.txt
 
 RAIZ = Path(__file__).resolve().parent.parent
 PAGINA = RAIZ / "painel" / "index.html"
@@ -42,6 +45,14 @@ def simular_para_painel(texto_gramatica: str, texto_entrada: str,
     g = ler_gramatica(texto_gramatica)
     m = glc_para_apnd(g)
     entrada = separar_entrada(texto_entrada)
+    tokens = []   # só com JSON de verdade: texto, linha e coluna de cada símbolo da fita
+    if set(entrada) - set(g.terminais) and set(g.terminais) <= TIPOS_JSON:
+        # gramática do JSON: aceita o JSON de verdade e passa ao APND os tipos dos tokens
+        try:
+            tokens = tokenizar(texto_entrada)[0]
+        except ErroLexico as e:
+            raise ValueError(f"linha {e.linha}, coluna {e.coluna}: erro léxico: {e.mensagem}")
+        entrada = [t.tipo for t in tokens]
     desconhecidos = sorted(set(entrada) - set(g.terminais))
     if desconhecidos:
         raise ValueError(f"símbolos que não são terminais da gramática: "
@@ -59,6 +70,7 @@ def simular_para_painel(texto_gramatica: str, texto_entrada: str,
                                  "empilha": list(t.empilha), "texto": str(t),
                                  "descricao": t.descricao} for t in m.transicoes]},
         "entrada": entrada,
+        "tokens": [{"texto": t.texto, "linha": t.linha, "coluna": t.coluna} for t in tokens],
         "busca": busca,
         "limite": LIMITE,
         "aceita": r.aceita,
@@ -70,7 +82,9 @@ def simular_para_painel(texto_gramatica: str, texto_entrada: str,
         "explorados": [{"id": no.id, "pai": no.pai.id if no.pai else None,
                         "estado": no.config.estado, "posicao": no.config.posicao,
                         "pilha": list(no.config.pilha),
-                        "transicao": no.transicao.numero if no.transicao else None}
+                        "transicao": no.transicao.numero if no.transicao else None,
+                        # beco sem saída: nenhuma transição se aplica a esta configuração
+                        "sem_saida": not any(m.transicoes_possiveis(no.config, entrada))}
                        for no in r.explorados],
     }
 

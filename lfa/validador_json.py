@@ -24,7 +24,9 @@ from .lexico_json import ErroLexico, Token, tokenizar
 
 GRAMATICA_JSON = Path(__file__).resolve().parent.parent / "gramaticas" / "json.txt"
 
-INICIOS_DE_VALOR = {"{", "[", "string", "numero", "true", "false", "null"}
+INICIOS_DE_VALOR = {"{", "[", "s", "n", "t", "f", "u"}
+NOMES = {"s": "uma string", "n": "um número", "t": "true", "f": "false", "u": "null",
+         FIM_DA_ENTRADA: "o fim do arquivo"}
 PARES = {"{": "}", "[": "]"}
 
 
@@ -95,10 +97,10 @@ def _abertura_pendente(tokens: list[Token]) -> Token | None:
 
 
 def _descrever(t: Token) -> str:
-    if t.tipo == "string":
+    if t.tipo == "s":
         texto = t.texto if len(t.texto) <= 20 else t.texto[:17] + '..."'
         return f"a string {texto}"
-    if t.tipo == "numero":
+    if t.tipo == "n":
         return f"o número {t.texto}"
     return f"'{t.texto}'"
 
@@ -109,12 +111,10 @@ def _listar_esperados(esperados: set[str]) -> str:
     if INICIOS_DE_VALOR <= resto:          # todos os inícios de valor: resume
         nomes.append("um valor")
         resto -= INICIOS_DE_VALOR
-    ordem = ["string", "numero", "true", "false", "null",
-             "{", "[", ":", ",", "}", "]", FIM_DA_ENTRADA]
+    ordem = ["s", "n", "t", "f", "u", "{", "[", ":", ",", "}", "]", FIM_DA_ENTRADA]
     for s in ordem:
         if s in resto:
-            nomes.append({"string": "uma string", "numero": "um número",
-                          FIM_DA_ENTRADA: "o fim do arquivo"}.get(s, f"'{s}'"))
+            nomes.append(NOMES.get(s, f"'{s}'"))
     if len(nomes) <= 1:
         return "".join(nomes) or "nada"
     return ", ".join(nomes[:-1]) + " ou " + nomes[-1]
