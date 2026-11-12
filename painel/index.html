@@ -151,7 +151,7 @@ footer { color: var(--suave); font-size: 12px; text-align: center; margin-top: 8
   </header>
 
   <form class="caixa barra" id="formulario">
-    <select id="arquivo" aria-label="Gramática"></select>
+    <select id="arquivo" autocomplete="off" aria-label="Gramática"></select>
     <input type="text" id="entrada" value="aabb" spellcheck="false" autocomplete="off" aria-label="Cadeia de entrada" placeholder="cadeia (vazia = λ)">
     <div class="seletor" role="radiogroup" aria-label="Estratégia de busca">
       <label><input type="radio" name="busca" value="largura" checked><span>BFS</span></label>
@@ -209,8 +209,8 @@ footer { color: var(--suave); font-size: 12px; text-align: center; margin-top: 8
     <details class="caixa">
       <summary>Editar gramática</summary>
       <div class="conteudo">
-        <textarea id="gramatica" spellcheck="false" aria-label="Regras da gramática"></textarea>
-        <p class="pequeno">Uma regra por linha, ex.: <code>S -&gt; a S b | λ</code>. Na cadeia, sem espaços cada caractere é um símbolo (<code>aabb</code>); com espaços, cada palavra é um símbolo (<code>{ string : numero }</code>). Depois de editar, clique em Executar.</p>
+        <textarea id="gramatica" spellcheck="false" autocomplete="off" aria-label="Regras da gramática"></textarea>
+        <p class="pequeno">Uma regra por linha, ex.: <code>S -&gt; a S b | λ</code> (digite <code>lambda</code> para obter λ). Na cadeia, sem espaços cada caractere é um símbolo (<code>aabb</code>); com espaços, cada palavra é um símbolo (<code>{ string : numero }</code>). Depois de editar, clique em Executar.</p>
       </div>
     </details>
     <details class="caixa">
@@ -276,6 +276,8 @@ async function carregarGramaticas() {
 async function gerar(evento) {
   if (evento) evento.preventDefault();
   parar();
+  // o arquivo escolhido manda; o navegador pode ter restaurado um texto antigo na caixa
+  if ($("arquivo").value) $("gramatica").value = $("arquivo").value;
   const corpo = {
     gramatica: $("gramatica").value,
     entrada: $("entrada").value,
@@ -363,10 +365,9 @@ function desenharTransicoes() {
 }
 
 function desenharDiagrama() {
-  const d = $("diagrama"), estados = dados.apnd.estados, R = 26, Y = 108, PASSO = 170;
+  const d = $("diagrama"), estados = dados.apnd.estados, R = 26, PASSO = 170, LINHA = 15;
   const X = i => 66 + i * PASSO;
   const largura = X(estados.length - 1) + 60;
-  d.setAttribute("viewBox", `0 0 ${largura} 150`);
   d.replaceChildren();
   const defs = svg("defs");
   const marcador = svg("marker", { id: "ponta", viewBox: "0 0 10 10", refX: 9, refY: 5, markerWidth: 7, markerHeight: 7, orient: "auto-start-reverse" });
@@ -381,13 +382,15 @@ function desenharDiagrama() {
     if (!grupos.has(k)) grupos.set(k, []);
     grupos.get(k).push(t);
   }
+  const maisRotulos = Math.max(1, ...[...grupos.values()].map(ts => ts.length));
+  const Y = 108 + (maisRotulos - 1) * LINHA;   // abre espaço acima para empilhar todos os rótulos
+  d.setAttribute("viewBox", `0 0 ${largura} ${Y + 42}`);
   const ini = pos.get(dados.apnd.inicial);
   d.append(svg("line", { x1: ini - R - 34, y1: Y, x2: ini - R - 2, y2: Y, class: "aresta", "marker-end": "url(#ponta)" }));
 
   for (const [k, ts] of grupos) {
     const [o, dst] = k.split(">");
     const xo = pos.get(o), xd = pos.get(dst);
-    const rotulo = ts.length === 1 ? rotuloTransicao(ts[0]) : `${ts.length} transições`;
     let caminho, tx, ty;
     if (o === dst) {
       caminho = `M${xo - 14},${Y - R + 4} C${xo - 46},${Y - R - 62} ${xo + 46},${Y - R - 62} ${xo + 14},${Y - R + 4}`;
@@ -398,7 +401,8 @@ function desenharDiagrama() {
       [tx, ty] = [(xo + xd) / 2, Y - 10];
     }
     d.append(svg("path", { d: caminho, class: "aresta", id: "a-" + k, "marker-end": "url(#ponta)" }));
-    d.append(svg("text", { x: tx, y: ty, "text-anchor": "middle", class: "rotulo" }, rotulo));
+    ts.forEach((t, i) => d.append(svg("text",
+      { x: tx, y: ty - (ts.length - 1 - i) * LINHA, "text-anchor": "middle", class: "rotulo" }, rotuloTransicao(t))));
   }
   for (const e of estados) {
     const g = svg("g", { class: "estado", id: "e-" + e });
@@ -529,7 +533,12 @@ const alternar = () => relogio ? parar() : tocar();
 
 $("formulario").addEventListener("submit", gerar);
 $("arquivo").addEventListener("change", () => { if ($("arquivo").value) $("gramatica").value = $("arquivo").value; });
-$("gramatica").addEventListener("input", () => { $("arquivo").value = ""; });
+function trocarLambda(e) {   // troca "lambda" por λ assim que termina de digitar
+  const t = e.target, antes = t.value.slice(0, t.selectionStart);
+  if (/lambda$/.test(antes)) t.setRangeText("λ", antes.length - 6, antes.length, "end");
+}
+$("gramatica").addEventListener("input", e => { $("arquivo").value = ""; trocarLambda(e); });
+$("entrada").addEventListener("input", trocarLambda);
 $("modo-caminho").addEventListener("change", () => { modo = "caminho"; montarSequencia(); });
 $("modo-busca").addEventListener("change", () => { modo = "busca"; montarSequencia(); });
 $("inicio").addEventListener("click", () => { parar(); irPara(0, false); });

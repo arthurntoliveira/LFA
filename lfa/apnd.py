@@ -36,6 +36,8 @@ def separar_entrada(texto: str) -> list[str]:
     """Com espaços, cada palavra é um símbolo ("{ string : numero }");
     sem espaços, cada caractere é um símbolo ("aabb")."""
     texto = texto.strip()
+    if texto == "λ":                   # λ sozinho é a cadeia vazia
+        return []
     return texto.split() if " " in texto else list(texto)
 
 
